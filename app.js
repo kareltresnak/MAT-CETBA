@@ -39,7 +39,7 @@ function getDeviceIdentity() {
 /* ==========================================
    OMEGA TELEMETRY ENGINE
    ========================================== */
-const OMEGA_VERSION = '7.4.5';
+const OMEGA_VERSION = '7.6.0';
 
 function trackOmegaEvent(eventName, eventData = {}) {
     if (typeof umami !== 'undefined') {
