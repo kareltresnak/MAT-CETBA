@@ -20,6 +20,22 @@ const STORAGE_KEY = 'kanon_selekce_state'; // Opět jen jeden pevný klíč
 const KNIHY_DB = window.OMEGA_CONFIG.KNIHY_DB;
 const REQUIREMENTS = window.OMEGA_CONFIG.REQUIREMENTS;
 
+// ==========================================
+// 🧬 ZERO-TRUST: GENERÁTOR KRYPTOGRAFICKÉ IDENTITY (NAT BYPASS)
+// ==========================================
+function getDeviceIdentity() {
+    let deviceId = localStorage.getItem('omega_device_id');
+    
+    // Pokud zařízení ještě nemá identitu, vytvoříme absolutní entropii
+    if (!deviceId) {
+        const array = new Uint8Array(32);
+        window.crypto.getRandomValues(array);
+        deviceId = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('omega_device_id', deviceId);
+    }
+    return deviceId;
+}
+
 /* ==========================================
    OMEGA TELEMETRY ENGINE
    ========================================== */
@@ -1353,7 +1369,10 @@ if (adminUrlParams.get('mat_cet_admin') === 'true') {
             // 2. Odeslání asymetrického payloadu (Heslo + Důkaz) na Worker
             const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-Omega-Device-Id": getDeviceIdentity() // <-- Tudy proudí identita
+                },
                 body: JSON.stringify({ 
                     password: inputVal,
                     cf_token: turnstileToken
@@ -1853,7 +1872,10 @@ function pushToCloudflare(fileContent, turnstileToken) {
 
     fetch(OMEGA_ADMIN_CONFIG.WORKER_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "X-Omega-Device-Id": getDeviceIdentity() // <-- Zajištění perzistence identity při pushi
+        },
         // 🛡️ ZERO-TRUST: Integrace tokenu do tělíčka požadavku
         body: JSON.stringify({ 
             fileContent: fileContent, 
