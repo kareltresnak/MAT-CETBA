@@ -39,7 +39,7 @@ function getDeviceIdentity() {
 /* ==========================================
    OMEGA TELEMETRY ENGINE
    ========================================== */
-const OMEGA_VERSION = '7.6.0';
+const OMEGA_VERSION = '7.6.1';
 
 function trackOmegaEvent(eventName, eventData = {}) {
     if (typeof umami !== 'undefined') {
@@ -1033,7 +1033,7 @@ elements.btnScrollTop?.addEventListener('click', () => {
 // Zobrazení času poslední aktualizace
 const auditEl = document.getElementById('audit-trail-date');
 if (auditEl && window.OMEGA_CONFIG.LAST_UPDATE) {
-    auditEl.innerHTML = `AKTUALIZOVÁNO: <span style="white-space: nowrap;"><strong>${window.OMEGA_CONFIG.LAST_UPDATE}</strong></span>`;
+    auditEl.innerHTML = `AKTUALIZOVÁNO: <strong>${window.OMEGA_CONFIG.LAST_UPDATE}</strong>`;
 }
 
 if ('caches' in window) {
