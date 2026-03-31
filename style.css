@@ -622,3 +622,38 @@ mark {
     color: var(--text-main);
     margin-bottom: 0.5rem;
 }
+
+/* 🚀 OMEGA ADMIN: Unifikace Selectů a Dropdownů */
+.styled-input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+}
+
+/* Skrytí šipky, pokud se nejedná o select (např. běžný text input) */
+input.styled-input {
+    background-image: none;
+}
+
+/* Styl pro našeptávač autorů (aby ladil s tématem) */
+#custom-author-dropdown {
+    border-color: var(--accent-primary-light) !important;
+    border-top: none !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+}
+
+.autocomplete-item {
+    padding: 10px 15px !important;
+    font-size: 0.9rem !important;
+    color: var(--text-main) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.autocomplete-item:hover {
+    background: rgba(118, 203, 161, 0.1) !important; /* SPŠ Mint Hover */
+    color: var(--accent-primary) !important;
+}
