@@ -969,24 +969,64 @@ document.getElementById("btn-clear-all").addEventListener('click', () => {
     showToast("☢️ Kompletní paměť byla vymazána.");
 });
 
-// ======= GENERÁTOR DOKUMENTŮ =======
+// ======= GENERÁTOR DOKUMENTŮ (Nativní Studentský Tisk) =======
 elements.btnExport.addEventListener('click', () => {
     if (elements.btnExport.disabled) return;
 
-    const selectedBooks = Array.from(state.selectedIds)
-        .map(id => KNIHY_DB.find(k => k.id === id))
-        .sort((a, b) => a.id - b.id);
+    try {
+        const selectedBooks = Array.from(state.selectedIds)
+            .map(id => KNIHY_DB.find(k => k.id === id))
+            .sort((a, b) => a.id - b.id);
 
-    const printArea = document.getElementById('print-area');
-    
-    // 1. Okamžitá injekce HTML
-    printArea.innerHTML = window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize);
-    
-    // 2. Krátká prodleva pro mobilní telefony i PC, aby prohlížeč stihl vykreslit tabulku a CSS!
-    setTimeout(() => {
+        const printArea = document.getElementById('print-area');
+
+        // 🚀 OMEGA FIX: Injekce dokumentu + izolované CSS výhradně pro studenta
+        printArea.innerHTML = `
+            <style>
+                @media print {
+                    /* Schová kompletně celou aplikaci kromě tiskové vrstvy */
+                    .layout, .mobile-nav, #toast, #share-modal, #preview-modal, #clear-modal, #omega-admin-portal, .fab-btn, #admin-print-editor-modal {
+                        display: none !important;
+                    }
+                    body {
+                        background: white !important;
+                        overflow: visible !important;
+                    }
+                    #print-area {
+                        display: block !important;
+                        visibility: visible !important;
+                        background: white !important;
+                        color: black !important;
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    #print-area * {
+                        color: black !important;
+                        visibility: visible !important;
+                        text-shadow: none !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
+            </style>
+            ${window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize)}
+        `;
+
         trackOmegaEvent('Export_PDF_Generated', { books_count: state.selectedIds.size });
-        window.print();
-    }, 150);
+
+        // Krátká prodleva pro aplikaci CSS
+        setTimeout(() => {
+            window.print();
+        }, 150);
+
+    } catch (error) {
+        console.error("Print Engine Error:", error);
+        showToast("❌ Chyba tisku: " + error.message);
+    }
 });
 
 let deferredPrompt;
@@ -1183,6 +1223,15 @@ window.renderAdminSummary = function() {
             if (book.autor !== book._original.autor) changedFields.push("Autor");
             if (book.obdobi !== book._original.obdobi) changedFields.push("Období");
             if (book.druh !== book._original.druh) changedFields.push("Druh");
+
+            // 🚀 OMEGA HACK: Zachycení konkrétního explicitního přesunu (Teleportu)
+            if (book._moveHistory && book._moveHistory.length > 0) {
+                const firstMove = book._moveHistory[0];
+                const lastMove = book._moveHistory[book._moveHistory.length - 1];
+                if (firstMove.from !== lastMove.to) {
+                    changedFields.push(`Pozice (ID ${firstMove.from} ➔ ${lastMove.to})`);
+                }
+            }
 
             if (changedFields.length > 0) {
                 edited.push(`<strong>${sanitize(book.dilo)}</strong> <span style="opacity:0.6; font-size:0.85em;">(Změna: ${changedFields.join(', ')})</span>`);
@@ -1426,11 +1475,28 @@ window.adminDrop = function(e, targetUid) {
 
     if (fromIndex !== -1 && toIndex !== -1) {
         const [movedItem] = adminVirtualDb.splice(fromIndex, 1);
+        
+        // 🚀 OMEGA HACK: Vizuální a logická izolace přesunu
+        if (!movedItem._isAdded) {
+            movedItem._isEdited = true;
+            if (!movedItem._moveHistory) movedItem._moveHistory = [];
+            movedItem._moveHistory.push({ from: fromIndex + 1, to: toIndex + 1 });
+        }
+
         adminVirtualDb.splice(toIndex, 0, movedItem);
         
-        adminEvaluateChanges(); // 🚀 Přepočet všech nabouraných IDček
+        // Tichý kaskádový přepočet ID (nahrazuje potenciálně toxický přepočet)
+        adminVirtualDb.forEach((book, idx) => {
+            book.id = idx + 1;
+        });
+        
+        // ⚠️ DŮLEŽITÉ: Tvá původní funkce adminEvaluateChanges() pravděpodobně plošně nastavovala 
+        // book._isEdited = true všem posunutým dílům. Zakomentoval jsem ji.
+        // adminEvaluateChanges(); 
+        
         isSafeToExit = false;
         renderAdminTable();
+        if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
         showToast("↕️ Pořadí upraveno.");
     }
     draggedUid = null;
@@ -1497,6 +1563,10 @@ window.adminSelectCustomOption = function(uid, field, val, label, isAddForm) {
 };
 
 // --- 🚪 EGRESS PROTOKOL (Úniková cesta) ---
+
+// 🚀 OMEGA HACK: Globální propustka pro potlačení nativního alertu prohlížeče
+window.OMEGA_SAFE_EXIT = false; 
+
 const checkForUnsavedChanges = () => {
     if (!adminVirtualDb || adminVirtualDb.length === 0) return false;
     return adminVirtualDb.some(k => k._isAdded || k._isDeleted || (k._isEdited && !k._isDeleted));
@@ -1504,6 +1574,7 @@ const checkForUnsavedChanges = () => {
 
 window.attemptAdminExit = function() {
     if (!checkForUnsavedChanges()) {
+        window.OMEGA_SAFE_EXIT = true; // Žádné změny nejsou, můžeme v klidu odejít
         const currentTheme = localStorage.getItem('omega_theme') || 'default';
         window.location.href = window.location.pathname + "?theme=" + currentTheme;
     } else {
@@ -1512,6 +1583,7 @@ window.attemptAdminExit = function() {
 };
 
 window.confirmAdminExit = function() {
+    window.OMEGA_SAFE_EXIT = true; // 🚀 ZVEDÁME ZÁVORU! Od této chvíle prohlížeč nesmí protestovat.
     const currentTheme = localStorage.getItem('omega_theme') || 'default';
     window.location.href = window.location.pathname + "?theme=" + currentTheme;
 };
@@ -1521,6 +1593,9 @@ window.closeExitModal = function() {
 };
 
 window.addEventListener('beforeunload', (event) => {
+    // Pokud máme propustku z našeho vlastního tlačítka, okamžitě ukončíme kontrolu
+    if (window.OMEGA_SAFE_EXIT) return undefined;
+
     if (checkForUnsavedChanges()) {
         event.preventDefault();
         event.returnValue = '';
@@ -1529,35 +1604,75 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 window.addEventListener('popstate', (event) => {
-    if (checkForUnsavedChanges()) {
+    // Ochrana i proti tlačítku "Zpět" v prohlížeči
+    if (checkForUnsavedChanges() && !window.OMEGA_SAFE_EXIT) {
         history.pushState(null, document.title, window.location.href);
         document.getElementById('omega-exit-modal').style.display = 'flex';
     }
 });
 
-// --- 🚀 ZERO-TRUST BRÁNA (BYPASS MODE) ---
-const adminUrlParams = new URLSearchParams(window.location.search);
-if (adminUrlParams.get('mat_cet_admin') === 'true') {
-    const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main'];
-    appElements.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => el.style.setProperty('display', 'none', 'important'));
+// --- 🔐 ZERO-TRUST BRÁNA (SECURE AUTH MODE) ---
+const btnAuthSubmit = document.getElementById('btn-auth-submit');
+const btnAuthCancel = document.getElementById('btn-auth-cancel');
+const authModalNode = document.getElementById('omega-auth-modal');
+const passwordInputNode = document.getElementById('admin-password-input');
+const authErrorMsgNode = document.getElementById('auth-error-msg');
+
+if (btnAuthSubmit && authModalNode) {
+    btnAuthSubmit.addEventListener('click', () => {
+        const pwd = passwordInputNode ? passwordInputNode.value.trim() : '';
+        if (!pwd) {
+            if (authErrorMsgNode) {
+                authErrorMsgNode.innerText = "Zadejte heslo.";
+                authErrorMsgNode.style.display = "block";
+            }
+            return;
+        }
+
+        // 1. Uložíme heslo do paměti relace pro Cloudflare Worker
+        sessionPassword = pwd;
+
+        // 2. Skrytí klientské aplikace
+        const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main', '#toast', '#omega-print-layer'];
+        appElements.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.style.setProperty('display', 'none', 'important'));
+        });
+        
+        document.body.style.setProperty('overflow-y', 'auto', 'important');
+        document.body.style.setProperty('padding-bottom', '0', 'important');
+        
+        // 3. Zavření modálu a spuštění Admin UI
+        authModalNode.style.display = 'none';
+        const adminPortal = document.getElementById('omega-admin-portal');
+        if (adminPortal) adminPortal.style.display = 'block';
+        
+        // 4. Očištění URL (bez bypass parametrů)
+        const currentTheme = localStorage.getItem('omega_theme') || 'default';
+        history.pushState({ page: 'admin_active' }, "Administrace OMEGA", window.location.pathname + "?theme=" + currentTheme);
+        
+        // 5. Inicializace admin enginu
+        setTimeout(() => {
+            if (typeof window.initAuthorAutocomplete === 'function') window.initAuthorAutocomplete();
+            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb(); 
+            if (typeof window.trackOmegaEvent === 'function') window.trackOmegaEvent('Admin_Portal_Accessed_Secure');
+        }, 50);
     });
-    
-    document.body.style.setProperty('overflow-y', 'auto', 'important');
-    document.body.style.setProperty('padding-bottom', '0', 'important');
-    
-    const authModal = document.getElementById('omega-auth-modal');
-    if (authModal) authModal.style.display = 'none';
-    
-    document.getElementById('omega-admin-portal').style.display = 'block';
-    history.pushState({ page: 'admin_active' }, "Administrace OMEGA", window.location.href);
-    
-    // 🚀 OMEGA TIMING FIX: Počkáme 50 ms, než prohlížeč dočte zbytek souboru do paměti
-    setTimeout(() => {
-        if (typeof window.initAuthorAutocomplete === 'function') window.initAuthorAutocomplete();
-        if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb(); 
-        if (typeof window.trackOmegaEvent === 'function') window.trackOmegaEvent('Admin_Portal_Accessed_Bypass');
-    }, 50);
+
+    // UX Kinetika: Enter v poli pro heslo odpaluje Submit
+    if (passwordInputNode) {
+        passwordInputNode.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') btnAuthSubmit.click();
+        });
+    }
+
+    // Tlačítko Zrušit
+    if (btnAuthCancel) {
+        btnAuthCancel.addEventListener('click', () => {
+            authModalNode.style.display = 'none';
+            if (passwordInputNode) passwordInputNode.value = '';
+            if (authErrorMsgNode) authErrorMsgNode.style.display = "none";
+        });
+    }
 }
 
 // --- ⌨️ KINETIKA KLÁVESNICE ---
@@ -1656,7 +1771,10 @@ window.renderAdminTable = function() {
             leftBorder = '4px solid #f59e0b'; 
         }
 
-        let idDisplay = isDel ? `<strike>${book.id || '-'}</strike>` : `<strong>${visualId++}</strong>`;
+        // 🚀 OMEGA HACK: Decentní Teleport štítek (Dark Mode Safe)
+        let idDisplay = isDel 
+            ? `<strike>${book.id || '-'}</strike>` 
+            : `<span onclick="openTeleportModal(${book.id})" style="cursor: pointer; padding: 2px 8px; border-radius: 4px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); font-weight: bold; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Teleport (Přesunout dílo)" onmouseover="this.style.borderColor='var(--accent-primary)'; this.style.color='var(--accent-primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-main)';">${visualId++} <span style="font-size:0.7em; opacity:0.5;">⇅</span></span>`;
         
         // 🚀 OMEGA UX: Kinetika Focusu s menším paddingem pro mobily
         const inputStyle = `width: 100%; background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 8px 6px; border-radius: 6px; outline: none; transition: all 0.2s; font-family: inherit; font-size: 0.95rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;`;
@@ -1766,6 +1884,89 @@ window.adminToggleDelete = function(uid) {
     isSafeToExit = false;
     renderAdminTable();
 };
+
+// --- 🚀 OMEGA TELEPORT ENGINE (Nativní Modál s telemetrií) ---
+let currentTeleportId = null;
+
+window.openTeleportModal = function(oldId) {
+    currentTeleportId = oldId;
+    document.getElementById('teleport-old-id-display').innerText = oldId;
+    
+    const input = document.getElementById('teleport-new-id-input');
+    const errorDisplay = document.getElementById('teleport-error-msg');
+    
+    input.value = '';
+    input.max = adminVirtualDb.length;
+    input.style.borderColor = "var(--border, #d1d5db)"; // Reset UI
+    if (errorDisplay) errorDisplay.innerText = ''; // Vyčištění starých chyb
+    
+    document.getElementById('omega-teleport-modal').style.display = 'flex';
+    setTimeout(() => input.focus(), 100);
+};
+
+window.closeTeleportModal = function() {
+    document.getElementById('omega-teleport-modal').style.display = 'none';
+    currentTeleportId = null;
+};
+
+window.confirmTeleport = function() {
+    if (!currentTeleportId) return;
+
+    const input = document.getElementById('teleport-new-id-input');
+    const errorDisplay = document.getElementById('teleport-error-msg');
+    let newId = parseInt(input.value);
+    let oldId = currentTeleportId;
+    let maxId = adminVirtualDb.length;
+
+    // Reset chybového stavu před novou evaluací
+    input.style.borderColor = "var(--border, #d1d5db)";
+    if (errorDisplay) errorDisplay.innerText = '';
+
+    // Helper pro výpis chyby
+    const throwError = (msg) => {
+        input.style.borderColor = "var(--accent-red, #ef4444)";
+        if (errorDisplay) errorDisplay.innerText = msg;
+    };
+
+    // 🚀 OMEGA: Exaktní sémantická validace
+    if (isNaN(newId)) return throwError("Zadejte platné číslo.");
+    if (newId < 1) return throwError("ID nemůže být menší než 1.");
+    if (newId > maxId) return throwError(`Databáze má pouze ${maxId} děl. Nelze přeskočit limit.`);
+    if (newId === oldId) return throwError("Dílo se již na této pozici nachází.");
+
+    // Matematický posun v poli
+    let oldIndex = oldId - 1;
+    let newIndex = newId - 1;
+    let movedItem = adminVirtualDb.splice(oldIndex, 1)[0];
+
+    // Zvýrazníme žlutě POUZE to dílo, které s uživatel explicitně přesunul
+    if (!movedItem._isAdded) {
+        movedItem._isEdited = true;
+        if (!movedItem._moveHistory) movedItem._moveHistory = [];
+        movedItem._moveHistory.push({ from: oldId, to: newId });
+    }
+
+    adminVirtualDb.splice(newIndex, 0, movedItem);
+
+    // Tiše přepočítáme ID u zbytku
+    adminVirtualDb.forEach((book, idx) => {
+        book.id = idx + 1;
+    });
+
+    closeTeleportModal();
+    renderAdminTable(); 
+    if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
+};
+
+// Záchyt Enter klávesy
+document.getElementById('teleport-new-id-input')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') confirmTeleport();
+});
+
+// Enter key v modálu potvrdí teleport
+document.getElementById('teleport-new-id-input')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') confirmTeleport();
+});
 
 // --- 🚑 DISASTER RECOVERY & AUTO-SNAPSHOT ---
 
@@ -2021,7 +2222,7 @@ window.closeAdminConfirmationModal = function() {
     document.getElementById('admin-confirmation-modal').style.display = 'none';
 };
 
-// --- 🕵️ STEALTH GATEWAY ---
+// --- 🕵️ STEALTH GATEWAY (5-CLICK TRIGGER PRO MODÁL) ---
 (function() {
     const buildNode = document.getElementById('app-build-info');
     if (!buildNode) return;
@@ -2035,9 +2236,21 @@ window.closeAdminConfirmationModal = function() {
         setTimeout(() => buildNode.style.opacity = "1", 100);
         clearTimeout(interactionTimer);
 
+        // 🚀 OMEGA FIX: Po 5 kliknutích otevřeme modál, žádné přesměrování URL
         if (interactionCount >= 5) {
-            const currentTheme = localStorage.getItem('omega_theme') || 'default';
-            window.location.href = window.location.pathname + "?theme=" + currentTheme + "&mat_cet_admin=true"; 
+            interactionCount = 0; // Reset počítadla
+            
+            const authModal = document.getElementById('omega-auth-modal');
+            const pwdInput = document.getElementById('admin-password-input');
+            const errorMsg = document.getElementById('auth-error-msg');
+            
+            if (authModal) {
+                if (pwdInput) pwdInput.value = '';
+                if (errorMsg) errorMsg.style.display = 'none';
+                
+                authModal.style.display = 'flex';
+                setTimeout(() => { if (pwdInput) pwdInput.focus(); }, 100);
+            }
         }
 
         interactionTimer = setTimeout(() => {
@@ -2084,7 +2297,7 @@ window.turnstileExpiredExport = function() {
 };
 
 
-// --- 🖨️ WYSIWYG PDF GENERATOR (Ironclad Box-Model & Colgroup Edition) ---
+// --- 🖨️ WYSIWYG PDF GENERATOR (Precise Alignment Edition) ---
 window.openAdminPdfEditor = function() {
     const container = document.getElementById('admin-print-document');
     const modal = document.getElementById('admin-print-editor-modal');
@@ -2116,7 +2329,6 @@ window.openAdminPdfEditor = function() {
             <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>NOVÝ OBOR</td>
             <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Nový ŠVP</td>
         `;
-        // Insert before last row ensures last row correctly has NO bottom border
         tbody.insertBefore(tr, tbody.lastElementChild);
     };
 
@@ -2133,7 +2345,6 @@ window.openAdminPdfEditor = function() {
 
     let counter = 1;
     dataSource.forEach((book, index) => {
-        // Vnitřní bottom border na všech kromě posledního (box ho uzavře)
         const isLast = index === dataSource.length - 1;
         const bottomBorder = isLast ? 'none' : '0.5pt solid black';
         
@@ -2153,17 +2364,24 @@ window.openAdminPdfEditor = function() {
 
     // --- HLAVNÍ DOKUMENT ---
     container.innerHTML = `
+        <style>
+            /* 🚀 OMEGA HACK: Absolutní karanténa proti Dark Mode */
+            #admin-print-document { background-color: white !important; }
+            #admin-print-document td, 
+            #admin-print-document th { background-color: white !important; color: black !important; border-color: black !important; }
+            #admin-print-document .editable-field { color: black !important; }
+        </style>
         <div style="font-family: Arial, Helvetica, sans-serif; color: black; line-height: 1.2; padding: 0; font-feature-settings: 'liga' 0, 'calt' 0; -webkit-font-smoothing: antialiased;">
             
-            <!-- MASTER STRUKTURA (THEAD = POUZE LOGO A ŠKOLA) -->
             <table style="width: 100%; border: none; border-collapse: collapse;">
+                
                 <thead style="display: table-header-group; border: none;">
                     <tr>
-                        <td style="width: 70px; padding: 0; vertical-align: top; border: none;">
-                            <img src="${imgUrl}" style="width: 50px; height: auto; display: block; -webkit-print-color-adjust: exact; margin-bottom: 5px;">
+                        <td style="width: 65px; border: none; padding: 0 0 10px 0; vertical-align: middle;">
+                            <img src="${imgUrl}" style="width: 58px; height: auto; display: block; -webkit-print-color-adjust: exact;">
                         </td>
-                        <td style="padding: 0 0 0 10px; vertical-align: top; border: none; height: 60px;">
-                            <div class="editable-field" contenteditable="true" style="font-size: 10.5pt; margin-top: 2px;">Střední průmyslová škola a Vyšší odborná škola Příbram II, Hrabákova 271</div>
+                        <td style="border: none; padding: 0 0 10px 5px; vertical-align: middle;">
+                            <div class="editable-field" contenteditable="true" style="font-size: 10.5pt;">Střední průmyslová škola a Vyšší odborná škola Příbram II, Hrabákova 271</div>
                         </td>
                     </tr>
                 </thead>
@@ -2172,17 +2390,15 @@ window.openAdminPdfEditor = function() {
                     <tr>
                         <td colspan="2" style="border: none; padding: 0;">
 
-                            <!-- SEZNAM DĚL (Geometricky přišroubovaný pod text školy, pouze strana 1) -->
-                            <div style="display: flex; width: 100%; margin-top: -38px; margin-bottom: 12px; position: relative; z-index: 10;">
-                                <div style="width: 70px; flex-shrink: 0;"></div>
-                                <div style="flex-grow: 1; padding-left: 10px;">
+                            <div style="display: flex; width: 100%; margin-bottom: 12px; margin-top: -30px; position: relative; z-index: 10;">
+                                <div style="width: 65px; flex-shrink: 0;"></div>
+                                <div style="flex-grow: 1; padding-left: 5px;">
                                     <div class="editable-field" contenteditable="true" style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase;">
                                         SEZNAM LITERÁRNÍCH DĚL K MZ - ÚSTNÍ ČÁST ŠK. ROK ${chrono.format}
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- TABULKA OBORŮ (Separate Box Model) -->
                             <div style="position: relative;">
                                 <button class="no-print" onclick="adminAddOborRow()" style="position: absolute; right: 0; top: -30px; background: #10b981; color: white; border: none; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; z-index: 100;">➕ Přidat obor</button>
                                 <table style="width: 100%; border: 1.5pt solid black; border-collapse: separate; border-spacing: 0; margin-bottom: 10px; font-size: 9.5pt;">
@@ -2219,14 +2435,13 @@ window.openAdminPdfEditor = function() {
                                 </table>
                             </div>
 
-                            <!-- 🚀 TABULKA DĚL s COLGROUP FIXEM (Garantuje šířky sloupců bez ohledu na thead) -->
                             <table style="width: 100%; border-collapse: collapse; border-left: 1.5pt solid black; border-right: 1.5pt solid black; margin-bottom: 12px; table-layout: fixed;">
                                 <colgroup>
-                                    <col style="width: 5%;">
-                                    <col style="width: 29%;">
-                                    <col style="width: 40%;">
-                                    <col style="width: 10%;">
-                                    <col style="width: 16%;">
+                                    <col style="width: 5.5%;">
+                                    <col style="width: 26%;">
+                                    <col style="width: 37.5%;">
+                                    <col style="width: 13%;">
+                                    <col style="width: 18%;">
                                 </colgroup>
                                 <thead style="display: table-header-group;">
                                     <tr><th colspan="5" style="padding: 0; height: 1px; border-top: 1.5pt solid black;"><div style="height: 0;"></div></th></tr>
@@ -2239,7 +2454,6 @@ window.openAdminPdfEditor = function() {
                                 </tbody>
                             </table>
 
-                            <!-- REKAPITULACE (Separate Box Model) -->
                             <table style="width: 100%; border: 1.5pt solid black; border-collapse: separate; border-spacing: 0; font-size: 9.5pt; margin-bottom: 12px; page-break-inside: avoid;">
                                 <tbody style="border: none;">
                                     <tr>
@@ -2262,7 +2476,6 @@ window.openAdminPdfEditor = function() {
                                 </tbody>
                             </table>
 
-                            <!-- PODMÍNKY A PODPIS -->
                             <div style="page-break-inside: avoid; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
                                 <div class="editable-field" contenteditable="true" style="font-size: 9.5pt; font-weight: bold; margin-bottom: 15px; line-height: 1.3; width: 100%;">
                                     Žák sestavuje svůj seznam = 20 lit. děl z předloženého školního seznamu, musí být zastoupena vždy alespoň 2x lyrika, epika, drama.
@@ -2281,4 +2494,5 @@ window.openAdminPdfEditor = function() {
     `;
 
     modal.style.display = 'flex';
+    document.body.classList.add('omega-admin-printing');
 };

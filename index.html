@@ -9,39 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script async defer src="https://cloud.umami.is/script.js" data-website-id="2d09c8e3-6ab3-414e-8e50-57c492a54ca9" data-domains="kareltresnak.github.io"></script>
     <script src="qrcode.min.js"></script>
-    <style>
-        /* Skryje tiskovou vrstvu na obrazovce */
-        #omega-print-layer { display: none; }
-
-        @media print {
-            /* Skryje celou aplikaci */
-            body * { visibility: hidden; background: none !important; box-shadow: none !important; }
-            #omega-print-layer, #omega-print-layer * { visibility: visible; }
-            #omega-print-layer { 
-                display: block !important; 
-                position: absolute; left: 0; top: 0; width: 100%; 
-                font-family: "Arial", sans-serif; color: black; line-height: 1.2;
-            }
-
-            /* Definice papíru A4 a okrajů (BOM Level) */
-            @page { size: A4 portrait; margin: 1.2cm 1.5cm 1cm 1.5cm; }
-
-            /* Společné styly pro tiskové tabulky */
-            .p-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 0; }
-            .p-table td, .p-table th { border: 1px solid black; padding: 2px 4px; font-size: 9.5pt; vertical-align: top; }
-            
-            /* Tlusté ohraničení (podle vzoru SPŠPB) */
-            .thick-border { border: 2.5pt solid black !important; }
-            .no-top-border { border-top: none !important; }
-            .no-bottom-border { border-bottom: none !important; }
-
-            /* Pomocné tiskové třídy */
-            .b { font-weight: bold; }
-            .c { text-align: center; }
-            .r { text-align: right; }
-            .it { font-style: italic; }
-        }
-    </style>
+    
     <script>
         (function() {
             const params = new URLSearchParams(window.location.search);
@@ -378,7 +346,7 @@
         <button class="btn success-btn" onclick="prepareDatabaseExport()" style="width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold;">
             💾 Uložit změny a přepsat databázi
         </button>
-        <button class="btn warning-btn" onclick="openAdminPdfEditor()" style="width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; margin-top: 15px; background: transparent; border: 2px solid var(--accent-primary); color: var(--text-main);">
+        <button type="button" class="btn" onclick="openAdminPdfEditor()" style="width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; margin-top: 15px; background: transparent; border: 2px dashed var(--text-muted, #9ca3af); color: inherit; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;">
             🖨️ Vytvořit oficiální dokument k tisku (PDF Editor)
         </button>
 
@@ -399,11 +367,11 @@
         
         <div class="no-print" style="position: sticky; top: 0; width: 100%; background: var(--bg-surface); padding: 10px 20px; border-bottom: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 20001; box-sizing: border-box;">
             <div style="display: flex; flex-direction: column;">
-                <h3 style="margin: 0; color: var(--text-main); font-size: 1.1rem;">Náhled k tisku (WYSIWYG)</h3>
-                <span style="font-size: 0.8rem; color: var(--accent-primary);">💡 Žlutě podbarvené texty můžete před tiskem kliknutím přepsat.</span>
+                <h3 style="margin: 0; color: var(--text-main); font-size: 1.1rem;">Náhled k tisku</h3>
+                <span style="font-size: 0.8rem; color: var(--accent-primary);">💡 Vzdělávací obory a stanovení ředitele lze přepsat.</span>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button class="btn" onclick="document.getElementById('admin-print-editor-modal').style.display='none'" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem;">Zavřít editor</button>
+                <button class="btn" onclick="document.getElementById('admin-print-editor-modal').style.display='none'; document.body.classList.remove('omega-admin-printing');" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem;">Zavřít editor</button>
                 <button class="btn success-btn" onclick="window.print()" style="font-weight: bold; font-size: 0.9rem; padding: 10px 20px;">🖨️ Tisk / Uložit PDF</button>
             </div>
         </div>
@@ -419,35 +387,35 @@
             .editable-field:focus { background: rgba(245, 158, 11, 0.05); box-shadow: 0 0 0 2px #f59e0b; }
             
             @media print {
-                /* Exaktní A4 s pevnými okraji, aby to prohlížeč neškáloval nesmyslně */
                 @page { size: A4 portrait; margin: 10mm 12mm; } 
                 
-                body * { visibility: hidden !important; overflow: visible !important; }
-                #admin-print-editor-modal, #admin-print-editor-modal * { visibility: visible !important; }
+                /* 🚀 OMEGA FIX: Tyto agresivní styly se zapnou POUZE pro administrátora */
+                body.omega-admin-printing * { visibility: hidden !important; overflow: visible !important; }
+                body.omega-admin-printing #admin-print-editor-modal, 
+                body.omega-admin-printing #admin-print-editor-modal * { visibility: visible !important; }
                 
-                #admin-print-editor-modal { 
+                body.omega-admin-printing #admin-print-editor-modal { 
                     position: absolute !important; left: 0 !important; top: 0 !important; 
                     width: 100% !important; height: auto !important;
                     padding: 0 !important; margin: 0 !important;
                     background: white !important; display: block !important;
                 }
                 
-                #admin-print-document-plátno { display: block !important; width: 100% !important; height: auto !important; padding: 0 !important; margin: 0 !important; }
+                body.omega-admin-printing #admin-print-document-plátno { display: block !important; width: 100% !important; height: auto !important; padding: 0 !important; margin: 0 !important; }
                 
-                #admin-print-document { 
+                body.omega-admin-printing #admin-print-document { 
                     width: 100% !important; height: auto !important;
                     padding: 0 !important; margin: 0 !important; 
                     box-shadow: none !important; border: none !important;
                     display: block !important;
                 }
                 
-                .no-print { display: none !important; }
-                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                body.omega-admin-printing .no-print { display: none !important; }
+                body.omega-admin-printing * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
                 
-                /* Kinetika tabulky pro tisk */
-                table { page-break-inside: auto !important; }
-                thead { display: table-header-group !important; }
-                tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+                body.omega-admin-printing table { page-break-inside: auto !important; }
+                body.omega-admin-printing thead { display: table-header-group !important; }
+                body.omega-admin-printing tr { page-break-inside: avoid !important; page-break-after: auto !important; }
             }
         </style>
         </div>
@@ -552,7 +520,7 @@
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">Ve frontě jsou připravené úpravy. Pokud nyní odejdete, všechny tyto změny budou ztraceny.</p>
             <div style="display: flex; gap: 15px;">
                 <button onclick="closeExitModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zůstat</button>
-                <button onclick="confirmAdminExit()" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red, #da2128); color: white; border: none;">Zahodit změny</button>
+                <button type="button" onclick="confirmAdminExit()" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red, #da2128); color: white; border: none;">Zahodit změny</button>
             </div>
         </div>
     </div>
@@ -562,6 +530,25 @@
             <h3 style="margin-top: 0; color: var(--text-main);">Relace uzamčena</h3>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">Z bezpečnostních důvodů byla administrace po 5 minutách nečinnosti automaticky ukončena. Případné neuložené změny ve frontě byly zahozeny.</p>
             <button onclick="document.getElementById('omega-timeout-modal').style.display='none'" class="btn" style="width: 100%; font-weight: bold; background: var(--accent-primary, #e67e22); color: white; border: none;">Rozumím</button>
+        </div>
+    </div>
+    <div id="omega-teleport-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 25px; width: 90%; max-width: 400px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); color: var(--text-main);">
+            <h3 style="margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2em;">🚀</span> Teleport díla
+            </h3>
+            <p style="margin-bottom: 15px; font-size: 0.95em; color: var(--text-muted);">
+                Přesouváte dílo z původní pozice <strong style="color: var(--accent-primary);"><span id="teleport-old-id-display"></span></strong>. Kam jej chcete přesunout?
+            </p>
+            
+            <input type="number" id="teleport-new-id-input" min="1" style="width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 5px; border: 1px solid var(--border); background: var(--bg-base); color: var(--text-main); border-radius: 4px; font-size: 1rem;" placeholder="Zadejte nové ID...">
+            
+            <div id="teleport-error-msg" style="color: var(--accent-red); font-size: 0.85em; font-weight: bold; min-height: 20px; margin-bottom: 15px; padding-left: 2px;"></div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="closeTeleportModal()" style="background: transparent; border: 1px solid var(--border); color: var(--text-main);">Zrušit</button>
+                <button type="button" class="btn" onclick="confirmTeleport()" style="background: var(--accent-primary); color: white; border: none; font-weight: bold;">Provést přesun</button>
+            </div>
         </div>
     </div>
     <div id="omega-print-layer"></div>
