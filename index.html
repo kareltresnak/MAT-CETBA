@@ -10,7 +10,6 @@
     <script async defer src="https://cloud.umami.is/script.js" data-website-id="2d09c8e3-6ab3-414e-8e50-57c492a54ca9" data-domains="kareltresnak.github.io"></script>
     <script src="qrcode.min.js"></script>
     
-
     <script>
         (function() {
             const params = new URLSearchParams(window.location.search);
@@ -259,7 +258,8 @@
             <button id="btn-actual-download" class="btn success-btn" style="width: 100%; font-size: 0.9rem; padding: 12px;">⬇️ Stáhnout data-spspb.js</button>
         </div>
     </div>
-    <div id="omega-admin-portal" style="display: none; padding: 2rem; max-width: 800px; margin: 0 auto; background: transparent; height: 100vh; overflow-y: auto; box-sizing: border-box; padding-bottom: 5rem;">
+    <div id="omega-admin-portal" style="display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; background: transparent; height: 100vh; overflow-y: auto; box-sizing: border-box; padding-bottom: 5rem;">
+        
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 12px;">
             <button onclick="attemptAdminExit()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s;" onmouseover="this.style.color='var(--text-main)'; this.style.borderColor='var(--text-main)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
                 🔙 Opustit administraci a vrátit se do aplikace
@@ -269,118 +269,71 @@
                 <strong id="idle-time-val-small">04:50</strong>
             </div>
         </div>
-        
-        <h2 style="color: var(--accent-primary); margin-bottom: 0.5rem;">📚 Úprava maturitního seznamu</h2>
-        <p style="color: var(--text-muted); margin-bottom: 2rem;">Připravte změny do fronty. Systém je automaticky zpracuje a zaktualizuje školní databázi pro všechny studenty.</p>
-        
-        <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem;">
+
+        <h2 style="color: var(--accent-primary); margin-bottom: 0.5rem; font-size: 1.8rem;">📚 Úprava maturitního seznamu</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem; font-size: 0.95rem;">Změny provádějte v příslušné záložce. Před opuštěním stránky nezapomeňte data uložit.</p>
+
+        <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
             
+            <!-- ZÁLOŽKY -->
             <div style="display: flex; gap: 20px; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; padding-bottom: 10px;">
                 <button id="tab-add" onclick="switchAdminMode('add')" style="background: transparent; border: none; border-bottom: 2px solid var(--accent-primary); color: var(--text-main); font-weight: bold; cursor: pointer; padding-bottom: 5px; opacity: 1; transition: 0.2s;">➕ Přidat dílo</button>
-                <button id="tab-remove" onclick="switchAdminMode('remove')" style="background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-main); font-weight: bold; cursor: pointer; padding-bottom: 5px; opacity: 0.5; transition: 0.2s;">🗑️ Odebrat dílo</button>
+                <button id="tab-edit" onclick="switchAdminMode('edit')" style="background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-main); font-weight: bold; cursor: pointer; padding-bottom: 5px; opacity: 0.5; transition: 0.2s;">📋 Seznam děl a úpravy</button>
+                <button id="tab-summary" onclick="switchAdminMode('summary')" style="background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-main); font-weight: bold; cursor: pointer; padding-bottom: 5px; opacity: 0.5; transition: 0.2s;">📊 Provedené změny</button>
             </div>
 
+            <!-- FORMULÁŘ PŘIDAT -->
             <div id="admin-form-add" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <input type="text" id="admin-dilo" class="styled-input" placeholder="Název díla (např. Bílá nemoc)">
                 <div style="position: relative; width: 100%;">
                     <input type="text" id="admin-autor" class="styled-input" placeholder="Autor (např. Karel Čapek)" autocomplete="off">
-                
                     <div id="custom-author-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 220px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 0 0 6px 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000; flex-direction: column;"></div>
                 </div>
                 
-                <select id="admin-obdobi" class="styled-input">
-                    <option value="do18">Do konce 18. st.</option>
-                    <option value="19">19. století</option>
-                    <option value="svet20">Svět 20. a 21. st.</option>
-                    <option value="cz20">ČR 20. a 21. st.</option>
-                </select>
-                
-                <select id="admin-druh" class="styled-input">
-                    <option value="epika">Epika</option>
-                    <option value="lyrika">Lyrika</option>
-                    <option value="drama">Drama</option>
-                </select>
-                
-                <input type="number" id="admin-index" class="styled-input" placeholder="Cílové ID (pozice v seznamu)" min="1" style="grid-column: span 2;">
-                
-                <button class="btn" onclick="addToStagingQueue()" style="grid-column: span 2; padding: 12px; background: transparent; border: 2px dashed var(--accent-primary); color: var(--text-main);">+ Přidat do fronty</button>
-            </div>
-
-            <div id="admin-form-remove" style="display: none; grid-template-columns: 1fr; gap: 15px;">
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">Zadejte ID knihy, kterou chcete trvale vyřadit. Ostatní knihy se automaticky posunou níže.</p>
-                <div style="display: flex; gap: 15px;">
-                    <input type="number" id="admin-delete-id" class="styled-input" placeholder="ID k odstranění" min="1" style="flex: 2;">
-                    <button class="btn danger-btn" onclick="addToDeleteQueue()" style="flex: 1; font-weight: bold;">🗑️ Přidat k odstranění</button>
-                </div>
-            </div>
-            <div id="omega-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); z-index: 10000; justify-content: center; align-items: center;">
-                <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red); width: 90%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-        
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-                    <h3 style="margin-top: 0; color: var(--text-main); font-size: 1.4rem;">Potvrdit nevratné změny?</h3>
-        
-                    <div id="confirm-modal-summary" style="background: rgba(218, 33, 40, 0.05); border: 1px solid rgba(218, 33, 40, 0.2); border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left; font-size: 0.9rem; color: var(--text-main);"></div>
-
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px; line-height: 1.5;">
-                        Tato akce okamžitě přepíše produkční databázi školy. Změny se projeví všem studentům během několika sekund.
-                    </p>
-        
-                    <div style="display: flex; gap: 15px;">
-                        <button onclick="closeConfirmModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit</button>
-                        <button id="btn-final-execute" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red); color: white;">Provést zápis</button>
+                <!-- 🚀 OMEGA CUSTOM SELECTS (Náhrada za nativní hrůzu) -->
+                <div style="position: relative;">
+                    <input type="hidden" id="admin-obdobi" value="do18">
+                    <div id="admin-obdobi-trigger" class="styled-input" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="adminOpenCustomDropdown(null, 'obdobi', event, true)">
+                        <span id="admin-obdobi-label">Do konce 18. st.</span><span style="font-size:0.7em; opacity:0.5;">▼</span>
                     </div>
                 </div>
+                <div style="position: relative;">
+                    <input type="hidden" id="admin-druh" value="epika">
+                    <div id="admin-druh-trigger" class="styled-input" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="adminOpenCustomDropdown(null, 'druh', event, true)">
+                        <span id="admin-druh-label">Epika</span><span style="font-size:0.7em; opacity:0.5;">▼</span>
+                    </div>
+                </div>
+                
+                <input type="number" id="admin-index" class="styled-input" placeholder="Vložit na pozici (ID)" min="1" style="grid-column: span 2;">
+                <button class="btn success-btn" onclick="adminAddBook()" style="grid-column: span 2; padding: 12px; font-size: 0.95rem;">Vložit do databáze</button>
             </div>
-            <div id="omega-recovery-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(8px); z-index: 10000; justify-content: center; align-items: center;">
-                <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 2px solid var(--accent-red, #da2128); width: 90%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(218,33,40,0.2);">
-                    
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">☢️</div>
-                    <h3 style="margin-top: 0; color: var(--text-main); font-size: 1.4rem;">Kritická obnova systému</h3>
-                    
-                    <div id="recovery-step-1">
-                        <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 15px;">Chystáte se přepsat celou databázi nahraným záložním souborem.</p>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px;">Tato akce okamžitě nahradí stávající maturitní seznam. Jste si jisti, že nahráváte správný soubor?</p>
-                        
-                        <div style="display: flex; gap: 15px;">
-                            <button onclick="closeRecoveryModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit</button>
-                            <button onclick="showRecoveryStep2()" class="btn" style="flex: 1; background: var(--accent-primary, #e67e22); color: white; border: none; font-weight: bold;">Ano, pokračovat</button>
-                        </div>
-                    </div>
 
-                    <div id="recovery-step-2" style="display: none;">
-                        <div style="background: rgba(218, 33, 40, 0.1); border: 1px solid rgba(218, 33, 40, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                            <strong style="color: var(--accent-red, #da2128); display: block; margin-bottom: 5px;">POSLEDNÍ VAROVÁNÍ</strong>
-                            <span style="color: var(--text-main); font-size: 0.85rem;">Tento krok je naprosto nevratný. Jakékoliv novější změny budou navždy ztraceny.</span>
-                        </div>
-                        
-                        <div style="display: flex; gap: 15px;">
-                            <button onclick="closeRecoveryModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit obnovu</button>
-                            <button onclick="executeFinalRecovery()" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red, #da2128); color: white; border: none;">🔥 Přepsat databázi</button>
-                        </div>
-                    </div>
+            <!-- TABULKA UPRAVIT -->
+            <div id="admin-form-edit" style="display: none; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;">
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Kliknutím na text díla nebo autora jej můžete rovnou upravit. Změny se barevně zvýrazní (na levém okraji).</p>
+                </div>
+                
+                <div id="admin-live-table-container" style="border: 1px solid var(--border); border-radius: 8px; overflow-y: auto; overflow-x: auto; max-height: 500px; background: var(--bg-surface); box-shadow: inset 0 -10px 10px -10px rgba(0,0,0,0.1);">
+                    <!-- Zde se vygeneruje tabulka -->
+                </div>
+            </div>
+            <!-- AUDIT LOG (PŘEHLED ZMĚN) -->
+            <div id="admin-form-summary" style="display: none; flex-direction: column; gap: 15px; background: var(--bg-base); padding: 20px; border-radius: 8px; border: 1px dashed var(--border);">
+                <h3 style="margin: 0; color: var(--text-main); font-size: 1.1rem;">Výpis transakcí (Audit Log)</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: -10px;">Kompletní přehled všech mutací před odesláním do produkce.</p>
+                <div id="admin-summary-content" style="font-size: 0.95rem; line-height: 1.8; color: var(--text-main); margin-top: 10px;">
+                    <!-- Generováno dynamicky přes JS -->
                 </div>
             </div>
         </div>
 
-        <h3 style="margin-bottom: 1rem; color: var(--text-main);">Fronta změn k odeslání</h3>
-        <div id="staging-queue-list" style="margin-bottom: 2rem; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; background: var(--bg-surface); min-height: 50px;">
-            <em style="color: var(--text-muted);">Zatím nebyla připravena žádná díla ke změně...</em>
-        </div>
-
+        <!-- CLOUDFLARE -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 1.5rem; width: 100%; padding-top: 1rem; border-top: 1px dashed var(--border);">
             <span id="ts-status-export" style="font-size: 0.75rem; color: var(--accent-primary, #e67e22); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.3s ease;">
                 ⏳ Zajišťuji kryptografický podpis pro zápis...
             </span>
-            
-            <div id="omega-export-ts"
-                 class="cf-turnstile" 
-                 data-sitekey="0x4AAAAAACrwaJVh0EjcmyFs" 
-                 data-appearance="interaction-only" 
-                 data-callback="turnstileSuccessExport"
-                 data-expired-callback="turnstileExpiredExport"
-                 style="width: 100%; max-width: 300px;">
-            </div>
-
+            <div id="omega-export-ts" class="cf-turnstile" data-sitekey="0x4AAAAAACrwaJVh0EjcmyFs" data-appearance="interaction-only" data-callback="turnstileSuccessExport" data-expired-callback="turnstileExpiredExport" style="width: 100%; max-width: 300px;"></div>
             <script>
                 (function() {
                     const ts = document.getElementById('omega-export-ts');
@@ -388,13 +341,16 @@
                     if (ts) ts.setAttribute('data-theme', theme);
                 })();
             </script>
-
         </div>
 
         <button class="btn success-btn" onclick="prepareDatabaseExport()" style="width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold;">
             💾 Uložit změny a přepsat databázi
         </button>
+        <button type="button" class="btn" onclick="openAdminPdfEditor()" style="width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; margin-top: 15px; background: transparent; border: 2px dashed var(--text-muted, #9ca3af); color: inherit; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;">
+            🖨️ Vytvořit oficiální dokument k tisku (PDF Editor)
+        </button>
 
+        <!-- DISASTER RECOVERY -->
         <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border);">
             <h3 style="margin-bottom: 0.5rem; color: var(--text-muted);">🚑 Obnova ze zálohy</h3>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">Pokud jste udělali chybu, nahrajte sem automaticky staženou zálohu (soubor .js).</p>
@@ -402,6 +358,104 @@
             <button class="btn" onclick="document.getElementById('restore-file-input').click()" style="width: 100%; padding: 12px; background: transparent; border: 1px dashed var(--text-muted); color: var(--text-muted);">
                 ⏪ Nahrát záložní soubor
             </button>
+        </div>
+        
+        <!-- ZACHRÁNĚNÉ MODÁLY -->
+        <!-- (Tvůj původní kód modálů pro potvrzení a obnovu zde zůstává nezměněn) -->
+
+        <div id="admin-print-editor-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-base); z-index: 20000; overflow-y: auto; flex-direction: column; align-items: center; padding-bottom: 50px;">
+        
+        <div class="no-print" style="position: sticky; top: 0; width: 100%; background: var(--bg-surface); padding: 10px 20px; border-bottom: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 20001; box-sizing: border-box;">
+            <div style="display: flex; flex-direction: column;">
+                <h3 style="margin: 0; color: var(--text-main); font-size: 1.1rem;">Náhled k tisku</h3>
+                <span style="font-size: 0.8rem; color: var(--accent-primary);">💡 Vzdělávací obory a stanovení ředitele lze přepsat.</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" onclick="document.getElementById('admin-print-editor-modal').style.display='none'; document.body.classList.remove('omega-admin-printing');" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem;">Zavřít editor</button>
+                <button class="btn success-btn" onclick="window.print()" style="font-weight: bold; font-size: 0.9rem; padding: 10px 20px;">🖨️ Tisk / Uložit PDF</button>
+            </div>
+        </div>
+
+        <div id="admin-print-document-plátno" style="display: flex; justify-content: center; width: 100%;">
+            <div id="admin-print-document" style="background: white; color: black; width: 210mm; min-height: 297mm; padding: 15mm; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.2); box-sizing: border-box; font-family: Arial, Helvetica, sans-serif;">
+                </div>
+        </div>
+
+        <style>
+            .editable-field { transition: 0.2s; outline: none; border-radius: 2px; }
+            .editable-field:hover { background: rgba(245, 158, 11, 0.15); box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); cursor: text; }
+            .editable-field:focus { background: rgba(245, 158, 11, 0.05); box-shadow: 0 0 0 2px #f59e0b; }
+            
+            @media print {
+                @page { size: A4 portrait; margin: 10mm 12mm; } 
+                
+                /* 🚀 OMEGA FIX: Tyto agresivní styly se zapnou POUZE pro administrátora */
+                body.omega-admin-printing * { visibility: hidden !important; overflow: visible !important; }
+                body.omega-admin-printing #admin-print-editor-modal, 
+                body.omega-admin-printing #admin-print-editor-modal * { visibility: visible !important; }
+                
+                body.omega-admin-printing #admin-print-editor-modal { 
+                    position: absolute !important; left: 0 !important; top: 0 !important; 
+                    width: 100% !important; height: auto !important;
+                    padding: 0 !important; margin: 0 !important;
+                    background: white !important; display: block !important;
+                }
+                
+                body.omega-admin-printing #admin-print-document-plátno { display: block !important; width: 100% !important; height: auto !important; padding: 0 !important; margin: 0 !important; }
+                
+                body.omega-admin-printing #admin-print-document { 
+                    width: 100% !important; height: auto !important;
+                    padding: 0 !important; margin: 0 !important; 
+                    box-shadow: none !important; border: none !important;
+                    display: block !important;
+                }
+                
+                body.omega-admin-printing .no-print { display: none !important; }
+                body.omega-admin-printing * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                
+                body.omega-admin-printing table { page-break-inside: auto !important; }
+                body.omega-admin-printing thead { display: table-header-group !important; }
+                body.omega-admin-printing tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+            }
+        </style>
+        </div>
+
+        <div id="omega-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); z-index: 10000; justify-content: center; align-items: center;">
+            <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red); width: 90%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                <h3 style="margin-top: 0; color: var(--text-main); font-size: 1.4rem;">Potvrdit nevratné změny?</h3>
+                <div id="confirm-modal-summary" style="background: rgba(218, 33, 40, 0.05); border: 1px solid rgba(218, 33, 40, 0.2); border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left; font-size: 0.9rem; color: var(--text-main);"></div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px; line-height: 1.5;">Tato akce okamžitě přepíše produkční databázi školy. Změny se projeví všem studentům během několika sekund.</p>
+                <div style="display: flex; gap: 15px;">
+                    <button onclick="closeConfirmModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit</button>
+                    <button id="btn-final-execute" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red); color: white;">Provést zápis</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="omega-recovery-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(8px); z-index: 10000; justify-content: center; align-items: center;">
+            <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 2px solid var(--accent-red, #da2128); width: 90%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(218,33,40,0.2);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">☢️</div>
+                <h3 style="margin-top: 0; color: var(--text-main); font-size: 1.4rem;">Kritická obnova systému</h3>
+                <div id="recovery-step-1">
+                    <p style="color: var(--text-main); font-size: 0.95rem; margin-bottom: 15px;">Chystáte se přepsat celou databázi nahraným záložním souborem.</p>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px;">Tato akce okamžitě nahradí stávající maturitní seznam. Jste si jisti, že nahráváte správný soubor?</p>
+                    <div style="display: flex; gap: 15px;">
+                        <button onclick="closeRecoveryModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit</button>
+                        <button onclick="showRecoveryStep2()" class="btn" style="flex: 1; background: var(--accent-primary, #e67e22); color: white; border: none; font-weight: bold;">Ano, pokračovat</button>
+                    </div>
+                </div>
+                <div id="recovery-step-2" style="display: none;">
+                    <div style="background: rgba(218, 33, 40, 0.1); border: 1px solid rgba(218, 33, 40, 0.3); border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                        <strong style="color: var(--accent-red, #da2128); display: block; margin-bottom: 5px;">POSLEDNÍ VAROVÁNÍ</strong>
+                        <span style="color: var(--text-main); font-size: 0.85rem;">Tento krok je naprosto nevratný. Jakékoliv novější změny budou navždy ztraceny.</span>
+                    </div>
+                    <div style="display: flex; gap: 15px;">
+                        <button onclick="closeRecoveryModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit obnovu</button>
+                        <button onclick="executeFinalRecovery()" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red, #da2128); color: white; border: none;">🔥 Přepsat databázi</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div id="omega-session-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(8px); z-index: 10005; justify-content: center; align-items: center;">
@@ -466,7 +520,7 @@
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">Ve frontě jsou připravené úpravy. Pokud nyní odejdete, všechny tyto změny budou ztraceny.</p>
             <div style="display: flex; gap: 15px;">
                 <button onclick="closeExitModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zůstat</button>
-                <button onclick="confirmAdminExit()" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red, #da2128); color: white; border: none;">Zahodit změny</button>
+                <button type="button" onclick="confirmAdminExit()" class="btn danger-btn" style="flex: 1; font-weight: bold; background: var(--accent-red, #da2128); color: white; border: none;">Zahodit změny</button>
             </div>
         </div>
     </div>
@@ -478,6 +532,26 @@
             <button onclick="document.getElementById('omega-timeout-modal').style.display='none'" class="btn" style="width: 100%; font-weight: bold; background: var(--accent-primary, #e67e22); color: white; border: none;">Rozumím</button>
         </div>
     </div>
+    <div id="omega-teleport-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 25px; width: 90%; max-width: 400px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); color: var(--text-main);">
+            <h3 style="margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.2em;">🚀</span> Teleport díla
+            </h3>
+            <p style="margin-bottom: 15px; font-size: 0.95em; color: var(--text-muted);">
+                Přesouváte dílo z původní pozice <strong style="color: var(--accent-primary);"><span id="teleport-old-id-display"></span></strong>. Kam jej chcete přesunout?
+            </p>
+            
+            <input type="number" id="teleport-new-id-input" min="1" style="width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 5px; border: 1px solid var(--border); background: var(--bg-base); color: var(--text-main); border-radius: 4px; font-size: 1rem;" placeholder="Zadejte nové ID...">
+            
+            <div id="teleport-error-msg" style="color: var(--accent-red); font-size: 0.85em; font-weight: bold; min-height: 20px; margin-bottom: 15px; padding-left: 2px;"></div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="closeTeleportModal()" style="background: transparent; border: 1px solid var(--border); color: var(--text-main);">Zrušit</button>
+                <button type="button" class="btn" onclick="confirmTeleport()" style="background: var(--accent-primary); color: white; border: none; font-weight: bold;">Provést přesun</button>
+            </div>
+        </div>
+    </div>
+    <div id="omega-print-layer"></div>
     <script src="app.js"></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script>

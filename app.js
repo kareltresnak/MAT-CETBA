@@ -19,7 +19,8 @@ const MAPA_OBDOBI = { "do18": "Do konce 18. st.", "19": "19. století", "cz20": 
 const STORAGE_KEY = 'kanon_selekce_state'; // Opět jen jeden pevný klíč
 const KNIHY_DB = window.OMEGA_CONFIG.KNIHY_DB;
 const REQUIREMENTS = window.OMEGA_CONFIG.REQUIREMENTS;
-
+// 🖼️ OMEGA ASSET: SPŠPB Logo (Base64 pro spolehlivý tisk)
+const OMEGA_LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAADNQTFRF////S0tLVVVVW1tbY2Njampqa2trdXV1e3t7gYGBiYmJkZGRmZmZqampra2tsbGxtbW1////9F/7bAAAABh0Uk5T////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................A98L6AAAAnHRFWHRDcmVhdGlvbiBUaW1lAFV0IDI4IG9yYyAyMDIyIDEyOjMxOjE5ICswMTAwM/b89AAAByh6VFh0U2lnbmF0dXJlAGYxNmMzNWM3NTQwMjVhNmI2MDdhODhhODRhMjZmMjA5MjYwNTRhYWNkOWIyZDZlODRiMDZkOTQzMWIwODUyZmMxU3L1AAAAAElFTkSuQmCC";
 // ==========================================
 // 🧬 ZERO-TRUST: GENERÁTOR KRYPTOGRAFICKÉ IDENTITY (NAT BYPASS)
 // ==========================================
@@ -968,24 +969,64 @@ document.getElementById("btn-clear-all").addEventListener('click', () => {
     showToast("☢️ Kompletní paměť byla vymazána.");
 });
 
-// ======= GENERÁTOR DOKUMENTŮ =======
+// ======= GENERÁTOR DOKUMENTŮ (Nativní Studentský Tisk) =======
 elements.btnExport.addEventListener('click', () => {
     if (elements.btnExport.disabled) return;
 
-    const selectedBooks = Array.from(state.selectedIds)
-        .map(id => KNIHY_DB.find(k => k.id === id))
-        .sort((a, b) => a.id - b.id);
+    try {
+        const selectedBooks = Array.from(state.selectedIds)
+            .map(id => KNIHY_DB.find(k => k.id === id))
+            .sort((a, b) => a.id - b.id);
 
-    const printArea = document.getElementById('print-area');
-    
-    // 1. Okamžitá injekce HTML
-    printArea.innerHTML = window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize);
-    
-    // 2. Krátká prodleva pro mobilní telefony i PC, aby prohlížeč stihl vykreslit tabulku a CSS!
-    setTimeout(() => {
+        const printArea = document.getElementById('print-area');
+
+        // 🚀 OMEGA FIX: Injekce dokumentu + izolované CSS výhradně pro studenta
+        printArea.innerHTML = `
+            <style>
+                @media print {
+                    /* Schová kompletně celou aplikaci kromě tiskové vrstvy */
+                    .layout, .mobile-nav, #toast, #share-modal, #preview-modal, #clear-modal, #omega-admin-portal, .fab-btn, #admin-print-editor-modal {
+                        display: none !important;
+                    }
+                    body {
+                        background: white !important;
+                        overflow: visible !important;
+                    }
+                    #print-area {
+                        display: block !important;
+                        visibility: visible !important;
+                        background: white !important;
+                        color: black !important;
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    #print-area * {
+                        color: black !important;
+                        visibility: visible !important;
+                        text-shadow: none !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                }
+            </style>
+            ${window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize)}
+        `;
+
         trackOmegaEvent('Export_PDF_Generated', { books_count: state.selectedIds.size });
-        window.print();
-    }, 150);
+
+        // Krátká prodleva pro aplikaci CSS
+        setTimeout(() => {
+            window.print();
+        }, 150);
+
+    } catch (error) {
+        console.error("Print Engine Error:", error);
+        showToast("❌ Chyba tisku: " + error.message);
+    }
 });
 
 let deferredPrompt;
@@ -1021,6 +1062,13 @@ window.addEventListener('scroll', () => {
         elements.btnScrollTop?.classList.remove('visible');
     }
 }, { passive: true });
+
+// 🛡️ OMEGA PRINT HOOK: Automatická příprava vrstvy před tiskem
+window.addEventListener('beforeprint', () => {
+    if (typeof window.prepareOmegaPrintLayer === 'function') {
+        window.prepareOmegaPrintLayer();
+    }
+});
 
 elements.btnScrollTop?.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1111,10 +1159,126 @@ const OMEGA_ADMIN_CONFIG = {
     WORKER_URL: "https://spspb-mat-cet.tresnakkarel77.workers.dev"
 };
 
-let stagingQueue = [];
-let deleteQueue = [];
+let adminVirtualDb = [];
 let sessionPassword = "";
 let pendingExportPayload = null;
+
+// --- 🎛️ UI: SEGMENTED CONTROL (Záložky) ---
+window.switchAdminMode = function(mode) {
+    const forms = { 
+        add: document.getElementById('admin-form-add'), 
+        edit: document.getElementById('admin-form-edit'), 
+        summary: document.getElementById('admin-form-summary') 
+    };
+    const tabs = { 
+        add: document.getElementById('tab-add'), 
+        edit: document.getElementById('tab-edit'), 
+        summary: document.getElementById('tab-summary') 
+    };
+
+    // Ochrana proti chybám v DOMu
+    if (!forms.add || !forms.edit || !forms.summary) return;
+
+    Object.keys(forms).forEach(key => {
+        // Přepínání viditelnosti kontejnerů
+        if (forms[key]) {
+            forms[key].style.display = (key === mode) ? (key === 'add' ? 'grid' : 'flex') : 'none';
+        }
+        // Přepínání stylů tlačítek
+        if (tabs[key]) {
+            tabs[key].style.borderBottom = (key === mode) ? '2px solid var(--accent-primary)' : '2px solid transparent';
+            tabs[key].style.opacity = (key === mode) ? '1' : '0.5';
+        }
+    });
+
+    // Pokud uživatel klikl na Audit Log, okamžitě ho matematicky přepočítáme
+    if (mode === 'summary' && typeof window.renderAdminSummary === 'function') {
+        window.renderAdminSummary();
+    }
+};
+
+// --- 📊 AUDIT LOG GENERATOR (Human-Readable Edition) ---
+window.renderAdminSummary = function() {
+    const container = document.getElementById('admin-summary-content');
+    if (!container) return;
+
+    let added = [];
+    let edited = [];
+    let deleted = [];
+    let orderChanged = false; // 🚀 OMEGA: Binární detektor změn pořadí
+    let visualId = 1;
+
+    adminVirtualDb.forEach(book => {
+        if (book._isDeleted) {
+            if (!book._isAdded) deleted.push(`<strong>${sanitize(book._original.dilo)}</strong> <span style="opacity:0.6; font-size:0.85em;">(Původní ID ${book.id})</span>`);
+            return;
+        }
+        
+        if (book._isAdded) {
+            added.push(`<strong>${sanitize(book.dilo)}</strong> <span style="opacity:0.6; font-size:0.85em;">(Nové ID ${visualId})</span>`);
+        } else {
+            // 🚀 OMEGA: Granulární detekce úprav
+            let changedFields = [];
+            if (book.dilo !== book._original.dilo) changedFields.push("Název");
+            if (book.autor !== book._original.autor) changedFields.push("Autor");
+            if (book.obdobi !== book._original.obdobi) changedFields.push("Období");
+            if (book.druh !== book._original.druh) changedFields.push("Druh");
+
+            // 🚀 OMEGA HACK: Zachycení konkrétního explicitního přesunu (Teleportu)
+            if (book._moveHistory && book._moveHistory.length > 0) {
+                const firstMove = book._moveHistory[0];
+                const lastMove = book._moveHistory[book._moveHistory.length - 1];
+                if (firstMove.from !== lastMove.to) {
+                    changedFields.push(`Pozice (ID ${firstMove.from} ➔ ${lastMove.to})`);
+                }
+            }
+
+            if (changedFields.length > 0) {
+                edited.push(`<strong>${sanitize(book.dilo)}</strong> <span style="opacity:0.6; font-size:0.85em;">(Změna: ${changedFields.join(', ')})</span>`);
+            } else if (book.id !== visualId) {
+                orderChanged = true;
+            }
+        }
+        visualId++;
+    });
+
+    if (added.length === 0 && edited.length === 0 && deleted.length === 0 && !orderChanged) {
+        container.innerHTML = '<em style="color: var(--text-muted);">Zatím nebyly provedeny žádné databázové mutace.</em>';
+        return;
+    }
+
+    let html = "";
+
+    if (added.length > 0) {
+        html += `<div style="margin-bottom: 15px; padding-left: 12px; border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: flex-start;">
+            <span style="color: #10b981; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">➕ Přidáno:</span> 
+            <div style="line-height: 1.5;">${added.join('<span style="color: var(--border); margin: 0 8px;">|</span>')}</div>
+        </div>`;
+    }
+
+    if (edited.length > 0) {
+        html += `<div style="margin-bottom: 15px; padding-left: 12px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: flex-start;">
+            <span style="color: #f59e0b; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">✏️ Změněno:</span> 
+            <div style="line-height: 1.5;">${edited.join('<span style="color: var(--border); margin: 0 8px;">|</span>')}</div>
+        </div>`;
+    }
+
+    if (deleted.length > 0) {
+        html += `<div style="margin-bottom: 15px; padding-left: 12px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: flex-start;">
+            <span style="color: #ef4444; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">🗑️ Odebráno:</span> 
+            <div style="line-height: 1.5;">${deleted.join('<span style="color: var(--border); margin: 0 8px;">|</span>')}</div>
+        </div>`;
+    }
+
+    if (orderChanged) {
+        html += `<div style="padding-left: 12px; border-left: 4px solid #3b82f6; background: rgba(59, 130, 246, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: center;">
+            <span style="color: #3b82f6; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">↕️ Pořadí:</span> 
+            <div style="line-height: 1.5; color: var(--text-muted); font-size: 0.9em;">V databázi došlo ke změně pořadí děl (Drag & Drop posun).</div>
+        </div>`;
+    }
+
+    container.innerHTML = html;
+};
 
 // --- ⏳ SECURITY: HYBRIDNÍ SESSION DECAY (HUD -> MODAL) ---
 let adminIdleTime = 0;
@@ -1223,16 +1387,23 @@ function initAuthorAutocomplete() {
     input.addEventListener('input', (e) => {
         renderDropdown(e.target.value);
         
-        // Původní heuristika období (Auto-fill)
+        // 🚀 OMEGA HEURISTICS: Auto-fill pro Custom Dropdown
         const hledanyAutor = e.target.value.trim().toLowerCase();
         const nalezeneDilo = window.OMEGA_CONFIG.KNIHY_DB.find(k => k.autor.toLowerCase() === hledanyAutor);
         if (nalezeneDilo) {
-            const obdobiSelect = document.getElementById('admin-obdobi');
-            if (obdobiSelect && obdobiSelect.value !== nalezeneDilo.obdobi) {
-                obdobiSelect.value = nalezeneDilo.obdobi;
-                obdobiSelect.style.transition = "background-color 0.3s";
-                obdobiSelect.style.backgroundColor = "var(--bg-active)";
-                setTimeout(() => obdobiSelect.style.backgroundColor = "transparent", 600);
+            const obdobiInput = document.getElementById('admin-obdobi');
+            const obdobiLabel = document.getElementById('admin-obdobi-label');
+            const obdobiTrigger = document.getElementById('admin-obdobi-trigger');
+            
+            if (obdobiInput && obdobiInput.value !== nalezeneDilo.obdobi) {
+                obdobiInput.value = nalezeneDilo.obdobi;
+                if (obdobiLabel) obdobiLabel.textContent = MAPA_OBDOBI[nalezeneDilo.obdobi];
+                
+                if (obdobiTrigger) {
+                    obdobiTrigger.style.transition = "background-color 0.3s";
+                    obdobiTrigger.style.backgroundColor = "var(--bg-active)";
+                    setTimeout(() => obdobiTrigger.style.backgroundColor = "transparent", 600);
+                }
             }
         }
     });
@@ -1268,398 +1439,534 @@ function navrhniDalsiVolneId() {
     if (idInput) idInput.value = dbSize - dSize + qSize + 1;
 }
 
+// --- 🚀 OMEGA KINETICS: Drag & Drop Engine ---
+let draggedUid = null;
+
+window.adminDragStart = function(e, uid) {
+    draggedUid = uid;
+    e.dataTransfer.effectAllowed = 'move';
+    e.target.closest('tr').style.opacity = '0.4';
+    setTimeout(() => e.target.closest('tr').classList.add('dragging'), 0);
+};
+
+window.adminDragOver = function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const tr = e.target.closest('tr');
+    if (tr && !tr.classList.contains('dragging')) {
+        tr.style.borderTop = '2px solid var(--accent-primary-light)';
+    }
+};
+
+window.adminDragLeave = function(e) {
+    const tr = e.target.closest('tr');
+    if (tr) tr.style.borderTop = '';
+};
+
+window.adminDrop = function(e, targetUid) {
+    e.preventDefault();
+    const tr = e.target.closest('tr');
+    if (tr) tr.style.borderTop = '';
+
+    if (draggedUid === targetUid) return;
+
+    const fromIndex = adminVirtualDb.findIndex(k => k._uid === draggedUid);
+    const toIndex = adminVirtualDb.findIndex(k => k._uid === targetUid);
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+        const [movedItem] = adminVirtualDb.splice(fromIndex, 1);
+        
+        // 🚀 OMEGA HACK: Vizuální a logická izolace přesunu
+        if (!movedItem._isAdded) {
+            movedItem._isEdited = true;
+            if (!movedItem._moveHistory) movedItem._moveHistory = [];
+            movedItem._moveHistory.push({ from: fromIndex + 1, to: toIndex + 1 });
+        }
+
+        adminVirtualDb.splice(toIndex, 0, movedItem);
+        
+        // Tichý kaskádový přepočet ID (nahrazuje potenciálně toxický přepočet)
+        adminVirtualDb.forEach((book, idx) => {
+            book.id = idx + 1;
+        });
+        
+        // ⚠️ DŮLEŽITÉ: Tvá původní funkce adminEvaluateChanges() pravděpodobně plošně nastavovala 
+        // book._isEdited = true všem posunutým dílům. Zakomentoval jsem ji.
+        // adminEvaluateChanges(); 
+        
+        isSafeToExit = false;
+        renderAdminTable();
+        if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
+        showToast("↕️ Pořadí upraveno.");
+    }
+    draggedUid = null;
+};
+
+window.adminDragEnd = function(e) {
+    e.target.closest('tr').style.opacity = '1';
+    e.target.closest('tr').classList.remove('dragging');
+    renderAdminTable(); 
+};
+
+// --- 🎨 OMEGA CUSTOM SELECT ENGINE ---
+window.adminOpenCustomDropdown = function(uid, field, event, isAddForm = false) {
+    document.querySelectorAll('.omega-custom-select-menu').forEach(el => el.remove());
+    event.stopPropagation();
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.className = 'omega-custom-select-menu';
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left}px`;
+    menu.style.width = `${rect.width}px`;
+    menu.style.background = 'var(--bg-surface)';
+    menu.style.border = '1px solid var(--accent-primary-light)';
+    menu.style.borderRadius = '6px';
+    menu.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
+    menu.style.zIndex = '10000';
+    menu.style.overflow = 'hidden';
+
+    const options = field === 'obdobi' 
+        ? [ {val: 'do18', label: 'Do konce 18. st.'}, {val: '19', label: '19. století'}, {val: 'svet20', label: 'Svět 20. a 21. st.'}, {val: 'cz20', label: 'ČR 20. a 21. st.'} ]
+        : [ {val: 'epika', label: 'Epika'}, {val: 'lyrika', label: 'Lyrika'}, {val: 'drama', label: 'Drama'} ];
+
+    menu.innerHTML = options.map(opt => `
+        <div class="autocomplete-item" style="padding: 10px 15px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 0.9rem; color: var(--text-main);"
+             onmouseover="this.style.background='rgba(118, 203, 161, 0.1)'; this.style.color='var(--accent-primary)'" 
+             onmouseout="this.style.background='transparent'; this.style.color='var(--text-main)'"
+             onclick="adminSelectCustomOption('${uid}', '${field}', '${opt.val}', '${opt.label}', ${isAddForm})">
+            ${opt.label}
+        </div>
+    `).join('');
+
+    document.body.appendChild(menu);
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 0);
+};
+
+window.adminSelectCustomOption = function(uid, field, val, label, isAddForm) {
+    document.querySelectorAll('.omega-custom-select-menu').forEach(el => el.remove());
+    
+    if (isAddForm) {
+        document.getElementById(`admin-${field}`).value = val;
+        document.getElementById(`admin-${field}-label`).textContent = label;
+    } else {
+        adminUpdateBook(uid, field, val);
+    }
+};
+
 // --- 🚪 EGRESS PROTOKOL (Úniková cesta) ---
 
-let isSafeToExit = false;
+// 🚀 OMEGA HACK: Globální propustka pro potlačení nativního alertu prohlížeče
+window.OMEGA_SAFE_EXIT = false; 
+
+const checkForUnsavedChanges = () => {
+    if (!adminVirtualDb || adminVirtualDb.length === 0) return false;
+    return adminVirtualDb.some(k => k._isAdded || k._isDeleted || (k._isEdited && !k._isDeleted));
+};
 
 window.attemptAdminExit = function() {
-    // Pokud je fronta prázdná, odejdeme rovnou (žádný modál neotravuje)
-    if (stagingQueue.length === 0 && deleteQueue.length === 0) {
-        isSafeToExit = true;
-        window.location.href = window.location.pathname;
+    if (!checkForUnsavedChanges()) {
+        window.OMEGA_SAFE_EXIT = true; // Žádné změny nejsou, můžeme v klidu odejít
+        const currentTheme = localStorage.getItem('omega_theme') || 'default';
+        window.location.href = window.location.pathname + "?theme=" + currentTheme;
     } else {
-        // Pokud jsou změny, otevřeme náš hezký Custom Modál
         document.getElementById('omega-exit-modal').style.display = 'flex';
     }
 };
 
 window.confirmAdminExit = function() {
-    // Uživatel potvrdil zahození změn v našem modálu -> deaktivujeme nativní dialog a odejdeme
-    isSafeToExit = true;
-    sessionPassword = "";
-    window.location.href = window.location.pathname;
+    window.OMEGA_SAFE_EXIT = true; // 🚀 ZVEDÁME ZÁVORU! Od této chvíle prohlížeč nesmí protestovat.
+    const currentTheme = localStorage.getItem('omega_theme') || 'default';
+    window.location.href = window.location.pathname + "?theme=" + currentTheme;
 };
 
 window.closeExitModal = function() {
     document.getElementById('omega-exit-modal').style.display = 'none';
 };
 
-// 🛡️ OBRANNÝ PERIMETR 1: Zachycení zavření karty (BOM Level)
 window.addEventListener('beforeunload', (event) => {
-    // 1. Validace stavu: Jsme v nebezpečí ztráty dat?
-    if (!isSafeToExit && (typeof stagingQueue !== 'undefined' && (stagingQueue.length > 0 || deleteQueue.length > 0))) {
-        
-        // 2. Exekuce blokády (Trojkombinace pro všechny enginy)
-        event.preventDefault(); // Uspokojení moderního standardu
-        event.returnValue = ''; // Uspokojení Chrome/Edge
-        return '';              // Fallback pro starší Safari/Firefox
+    // Pokud máme propustku z našeho vlastního tlačítka, okamžitě ukončíme kontrolu
+    if (window.OMEGA_SAFE_EXIT) return undefined;
+
+    if (checkForUnsavedChanges()) {
+        event.preventDefault();
+        event.returnValue = '';
+        return '';
     }
 });
 
 window.addEventListener('popstate', (event) => {
-    if (!isSafeToExit && (stagingQueue.length > 0 || deleteQueue.length > 0)) {
-        // 1. Zastavení kroku zpět
+    // Ochrana i proti tlačítku "Zpět" v prohlížeči
+    if (checkForUnsavedChanges() && !window.OMEGA_SAFE_EXIT) {
         history.pushState(null, document.title, window.location.href);
-        
-        // 2. EXEKUCE: Zobrazení tvého reálného modálu pro odchod
         document.getElementById('omega-exit-modal').style.display = 'flex';
     }
 });
 
-// --- 🚀 ZERO-TRUST BRÁNA ---
+// --- 🔐 ZERO-TRUST BRÁNA (SECURE AUTH MODE) ---
+const btnAuthSubmit = document.getElementById('btn-auth-submit');
+const btnAuthCancel = document.getElementById('btn-auth-cancel');
+const authModalNode = document.getElementById('omega-auth-modal');
+const passwordInputNode = document.getElementById('admin-password-input');
+const authErrorMsgNode = document.getElementById('auth-error-msg');
 
-const adminUrlParams = new URLSearchParams(window.location.search);
-if (adminUrlParams.get('mat_cet_admin') === 'true') {
-    // --- NUKLEÁRNÍ UI LOCKDOWN ---
-    const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main'];
-    appElements.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => {
-            el.style.setProperty('display', 'none', 'important');
+if (btnAuthSubmit && authModalNode) {
+    btnAuthSubmit.addEventListener('click', () => {
+        const pwd = passwordInputNode ? passwordInputNode.value.trim() : '';
+        if (!pwd) {
+            if (authErrorMsgNode) {
+                authErrorMsgNode.innerText = "Zadejte heslo.";
+                authErrorMsgNode.style.display = "block";
+            }
+            return;
+        }
+
+        // 1. Uložíme heslo do paměti relace pro Cloudflare Worker
+        sessionPassword = pwd;
+
+        // 2. Skrytí klientské aplikace
+        const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main', '#toast', '#omega-print-layer'];
+        appElements.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.style.setProperty('display', 'none', 'important'));
         });
-    });
-    
-    document.body.style.setProperty('overflow-y', 'auto', 'important');
-    document.body.style.setProperty('padding-bottom', '0', 'important');
-    // ------------------------------
-    
-    const authModal = document.getElementById('omega-auth-modal');
-    const passInput = document.getElementById('admin-password-input');
-    const errorMsg = document.getElementById('auth-error-msg');
-    const submitBtn = document.getElementById('btn-auth-submit');
-    const cancelBtn = document.getElementById('btn-auth-cancel');
-
-    authModal.style.display = 'flex';
-    passInput.focus();
-
-    // 🔐 OMEGA AUTHENTICATION ENGINE (Zero-Trust Edition)
-    const unlockAdminPortal = async () => {
-        const inputVal = passInput.value;
         
-        // 1. Extrakce kryptografického důkazu (Turnstile) z přihlašovacího okna
-        const authTurnstileInput = document.querySelector('#omega-auth-modal [name="cf-turnstile-response"]');
-        const turnstileToken = authTurnstileInput ? authTurnstileInput.value : null;
+        document.body.style.setProperty('overflow-y', 'auto', 'important');
+        document.body.style.setProperty('padding-bottom', '0', 'important');
+        
+        // 3. Zavření modálu a spuštění Admin UI
+        authModalNode.style.display = 'none';
+        const adminPortal = document.getElementById('omega-admin-portal');
+        if (adminPortal) adminPortal.style.display = 'block';
+        
+        // 4. Očištění URL (bez bypass parametrů)
+        const currentTheme = localStorage.getItem('omega_theme') || 'default';
+        history.pushState({ page: 'admin_active' }, "Administrace OMEGA", window.location.pathname + "?theme=" + currentTheme);
+        
+        // 5. Inicializace admin enginu
+        setTimeout(() => {
+            if (typeof window.initAuthorAutocomplete === 'function') window.initAuthorAutocomplete();
+            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb(); 
+            if (typeof window.trackOmegaEvent === 'function') window.trackOmegaEvent('Admin_Portal_Accessed_Secure');
+        }, 50);
+    });
 
-        if (!turnstileToken) {
-            errorMsg.innerHTML = "⚠️ Vyčkejte na ověření Cloudflare (bezpečnostní check).";
-            errorMsg.style.display = 'block';
-            return;
-        }
+    // UX Kinetika: Enter v poli pro heslo odpaluje Submit
+    if (passwordInputNode) {
+        passwordInputNode.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') btnAuthSubmit.click();
+        });
+    }
 
-        if (!inputVal) {
-            errorMsg.innerHTML = "⚠️ Zadejte administrátorské heslo.";
-            errorMsg.style.display = 'block';
-            return;
-        }
-
-        errorMsg.style.display = 'none';
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = "⌛ Ověřuji přes Edge...";
-
-        try {
-            // 2. Odeslání asymetrického payloadu (Heslo + Důkaz) na Worker
-            const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "X-Omega-Device-Id": getDeviceIdentity() // <-- Tudy proudí identita
-                },
-                body: JSON.stringify({ 
-                    password: inputVal,
-                    cf_token: turnstileToken
-                })
-            });
-
-            if (response.ok) {
-                // 3. ÚSPĚCH
-                sessionPassword = inputVal;
-                authModal.style.display = 'none';
-                document.getElementById('omega-admin-portal').style.display = 'block';
-                
-                // 🚀 INJEKCE HISTORIE: Vytvoříme virtuální krok, aby fungovala šipka zpět
-                history.pushState({ page: 'admin_active' }, "Administrace OMEGA", window.location.href);
-
-                initAuthorAutocomplete();
-                navrhniDalsiVolneId();
-                if (typeof trackOmegaEvent === 'function') trackOmegaEvent('Admin_Portal_Accessed');
-
-            } else {
-                // 4. SELHÁNÍ (Heslo nebo Token)
-                const data = await response.json();
-                errorMsg.innerHTML = "❌ " + (data.error || "Přístup odepřen.");
-                errorMsg.style.display = 'block';
-                passInput.value = "";
-                passInput.focus();
-            }
-        } catch (err) {
-            errorMsg.innerHTML = "⚠️ Server nedostupný (CORS/Internet).";
-            errorMsg.style.display = 'block';
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = "Vstoupit";
-            
-            // 🛡️ Bezpečnostní destrukce: Exaktní reset konkrétního uzlu
-            if (typeof turnstile !== 'undefined') {
-                try {
-                    // Zamíříme přesně na přihlašovací widget
-                    turnstile.reset('#omega-auth-ts');
-                } catch (e) {
-                    turnstile.reset(); // Fallback
-                }
-                
-                // 🔄 Vizuální reset stavového automatu
-                const statusEl = document.getElementById('ts-status-auth');
-                if (statusEl) {
-                    statusEl.innerHTML = "⏳ Generuji nový klíč...";
-                    statusEl.style.color = "var(--accent-primary, #e67e22)";
-                }
-            }
-        }};
-
-    submitBtn.onclick = unlockAdminPortal;
-    passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') unlockAdminPortal(); });
-    cancelBtn.onclick = () => { window.location.href = "?"; };
+    // Tlačítko Zrušit
+    if (btnAuthCancel) {
+        btnAuthCancel.addEventListener('click', () => {
+            authModalNode.style.display = 'none';
+            if (passwordInputNode) passwordInputNode.value = '';
+            if (authErrorMsgNode) authErrorMsgNode.style.display = "none";
+        });
+    }
 }
 
-// --- 🎛️ UI: SEGMENTED CONTROL ---
-
-window.switchAdminMode = function(mode) {
-    const addForm = document.getElementById('admin-form-add');
-    const removeForm = document.getElementById('admin-form-remove');
-    const tabAdd = document.getElementById('tab-add');
-    const tabRemove = document.getElementById('tab-remove');
-
-    if (mode === 'add') {
-        addForm.style.display = 'grid';
-        removeForm.style.display = 'none';
-        tabAdd.style.borderBottom = '2px solid var(--accent-primary)';
-        tabAdd.style.opacity = '1';
-        tabRemove.style.borderBottom = '2px solid transparent';
-        tabRemove.style.opacity = '0.5';
-    } else if (mode === 'remove') {
-        addForm.style.display = 'none';
-        removeForm.style.display = 'grid';
-        tabAdd.style.borderBottom = '2px solid transparent';
-        tabAdd.style.opacity = '0.5';
-        tabRemove.style.borderBottom = '2px solid var(--accent-red, #da2128)';
-        tabRemove.style.opacity = '1';
-    }
-};
-
-// --- ⌨️ UX ERGONOMIE: Kinetika klávesnice ---
+// --- ⌨️ KINETIKA KLÁVESNICE ---
 ['admin-dilo', 'admin-autor', 'admin-index'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                // Odeslat jen pokud jsme v záložce "Přidat dílo"
-                const addForm = document.getElementById('admin-form-add');
-                if (addForm && addForm.style.display !== 'none') {
-                    addToStagingQueue();
-                }
+                adminAddBook();
             }
         });
     }
 });
 
-const deleteInput = document.getElementById('admin-delete-id');
-if (deleteInput) {
-    deleteInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            addToDeleteQueue();
+// --- ⚙️ VIRTUÁLNÍ DATABÁZE (SHADOW DOM) ---
+window.initAdminVirtualDb = function() {
+    adminVirtualDb = JSON.parse(JSON.stringify(window.OMEGA_CONFIG.KNIHY_DB)).map(k => ({
+        ...k,
+        _isDeleted: false,
+        _isAdded: false,
+        _isEdited: false,
+        _uid: Math.random().toString(36).substr(2, 9),
+        _original: { ...k } // 🚀 Uložení prvotního otisku (Pristine State)
+    }));
+    renderAdminTable();
+};
+
+// 🚀 OMEGA SMART EVALUATOR: Deterministický výpočet změn
+window.adminEvaluateChanges = function() {
+    let visualId = 1;
+
+    adminVirtualDb.forEach(book => {
+        if (book._isDeleted) return; 
+
+        if (book._isAdded) {
+            visualId++; 
+            return; 
         }
-    });
-}
-
-// --- ⚙️ REAKTIVNÍ FRONT CONTROLLER ---
-
-window.addToStagingQueue = function() {
-    // Extrémní sanitizace MS Word odpadu (Chytré uvozovky, Zero-width znaky)
-    const dilo = document.getElementById('admin-dilo').value
-        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Odstranění neviditelných znaků
-        .replace(/[“”„]/g, '"').replace(/[‘’]/g, "'") // Normalizace uvozovek
-        .trim().replace(/\s+/g, ' '); // Zploštění mezer
         
-    const autor = document.getElementById('admin-autor').value
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .replace(/[“”„]/g, '"').replace(/[‘’]/g, "'")
-        .trim().replace(/\s+/g, ' ');
+        // 1. Změnilo se finální exportní ID vůči originálnímu? (Absolutní pravda)
+        const positionChanged = (visualId !== book.id);
+        
+        // 2. Změnil se text nebo dropdown vůči originálu?
+        const contentChanged = (
+            book.dilo !== book._original.dilo ||
+            book.autor !== book._original.autor ||
+            book.obdobi !== book._original.obdobi ||
+            book.druh !== book._original.druh
+        );
 
+        book._isEdited = positionChanged || contentChanged;
+        
+        visualId++;
+    });
+};
+
+window.renderAdminTable = function() {
+    const container = document.getElementById('admin-live-table-container');
+    
+    // 🛡️ HLAVIČKA: Roztažená min-width pro mobil, zvětšené font-size
+    let html = `<table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; min-width: 1000px; table-layout: fixed;">
+        <thead style="position: sticky; top: 0; z-index: 10; background: var(--accent-primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            <tr>
+                <th style="padding: 10px 2px; width: 6%; text-align: center; color: #ffffff; font-weight: bold;">↕</th>
+                <th style="padding: 10px 2px; width: 6%; color: #ffffff; font-weight: bold;">ID</th>
+                <th style="padding: 10px 4px; width: 30%; color: #ffffff; font-weight: bold;">Dílo</th>
+                <th style="padding: 10px 4px; width: 20%; color: #ffffff; font-weight: bold;">Autor</th>
+                <th style="padding: 10px 4px; width: 17%; color: #ffffff; font-weight: bold;">Období</th>
+                <th style="padding: 10px 4px; width: 13%; color: #ffffff; font-weight: bold;">Druh</th>
+                <th style="padding: 10px 2px; width: 8%; text-align: center; color: #ffffff; font-weight: bold;">Akce</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    let visualId = 1;
+    
+    adminVirtualDb.forEach((book) => {
+        const isDel = book._isDeleted;
+        const isAdd = book._isAdded;
+        const isEdit = book._isEdited && !isDel;
+        
+        let bg = 'transparent';
+        let leftBorder = '4px solid transparent';
+        let opacity = '1';
+        
+        if (isDel) {
+            bg = 'rgba(239, 68, 68, 0.04)';
+            leftBorder = '4px solid #ef4444'; 
+            opacity = '0.5';
+        } else if (isAdd) {
+            bg = 'rgba(16, 185, 129, 0.06)';
+            leftBorder = '4px solid #10b981'; 
+        } else if (isEdit) {
+            bg = 'rgba(245, 158, 11, 0.08)';
+            leftBorder = '4px solid #f59e0b'; 
+        }
+
+        // 🚀 OMEGA HACK: Decentní Teleport štítek (Dark Mode Safe)
+        let idDisplay = isDel 
+            ? `<strike>${book.id || '-'}</strike>` 
+            : `<span onclick="openTeleportModal(${book.id})" style="cursor: pointer; padding: 2px 8px; border-radius: 4px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); font-weight: bold; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" title="Teleport (Přesunout dílo)" onmouseover="this.style.borderColor='var(--accent-primary)'; this.style.color='var(--accent-primary)';" onmouseout="this.style.borderColor='var(--border)'; this.style.color='var(--text-main)';">${visualId++} <span style="font-size:0.7em; opacity:0.5;">⇅</span></span>`;
+        
+        // 🚀 OMEGA UX: Kinetika Focusu s menším paddingem pro mobily
+        const inputStyle = `width: 100%; background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 8px 6px; border-radius: 6px; outline: none; transition: all 0.2s; font-family: inherit; font-size: 0.95rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;`;
+        const focusLogic = `onmouseover="this.style.background='rgba(118, 203, 161, 0.05)'" onmouseout="this.style.background='transparent'" onfocus="this.style.background='var(--bg-base)'; this.style.borderColor='var(--accent-primary-light)'; this.style.boxShadow='0 0 0 3px rgba(118, 203, 161, 0.2)'" onblur="this.style.background='transparent'; this.style.borderColor='transparent'; this.style.boxShadow='none'"`;
+
+        // 🚀 OMEGA KINETICS: Draggable řádek
+        html += `<tr id="row-${book._uid}"
+            ondragstart="adminDragStart(event, '${book._uid}')" ondragover="adminDragOver(event)" ondragleave="adminDragLeave(event)" ondrop="adminDrop(event, '${book._uid}')" ondragend="adminDragEnd(event)"
+            style="background: ${bg}; opacity: ${opacity}; border-bottom: 1px solid var(--border); transition: all 0.2s;">
+            
+            <td onmousedown="document.getElementById('row-${book._uid}').setAttribute('draggable', 'true')" 
+                onmouseup="document.getElementById('row-${book._uid}').removeAttribute('draggable')" 
+                onmouseleave="document.getElementById('row-${book._uid}').removeAttribute('draggable')" 
+                ontouchstart="document.getElementById('row-${book._uid}').setAttribute('draggable', 'true')"
+                ontouchend="document.getElementById('row-${book._uid}').removeAttribute('draggable')"
+                style="padding: 8px 2px; text-align: center; cursor: grab; color: var(--text-muted); opacity: 0.4; border-left: ${leftBorder}; user-select: none;">☰</td>
+            
+            <td style="padding: 8px 2px; color: var(--text-muted);">${idDisplay}</td>
+            
+            <td style="padding: 4px 2px;"><input type="text" value="${sanitize(book.dilo)}" onchange="adminUpdateBook('${book._uid}', 'dilo', this.value)" style="${inputStyle}" ${isDel ? 'disabled' : focusLogic}></td>
+            <td style="padding: 4px 2px;"><input type="text" value="${sanitize(book.autor)}" onchange="adminUpdateBook('${book._uid}', 'autor', this.value)" style="${inputStyle}" ${isDel ? 'disabled' : focusLogic}></td>
+            
+            <!-- CUSTOM DROPDOWNY V TABULCE -->
+            <td style="padding: 4px 2px;">
+                <div style="${inputStyle} cursor: ${isDel ? 'not-allowed' : 'pointer'}; display: flex; justify-content: space-between; align-items: center;" 
+                     ${isDel ? '' : `onclick="adminOpenCustomDropdown('${book._uid}', 'obdobi', event)" ${focusLogic}`}>
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${MAPA_OBDOBI[book.obdobi]}</span><span style="font-size:0.6em; opacity:0.5;">▼</span>
+                </div>
+            </td>
+            <td style="padding: 4px 2px;">
+                <div style="${inputStyle} cursor: ${isDel ? 'not-allowed' : 'pointer'}; display: flex; justify-content: space-between; align-items: center;" 
+                     ${isDel ? '' : `onclick="adminOpenCustomDropdown('${book._uid}', 'druh', event)" ${focusLogic}`}>
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${book.druh.charAt(0).toUpperCase() + book.druh.slice(1)}</span><span style="font-size:0.6em; opacity:0.5;">▼</span>
+                </div>
+            </td>
+            
+            <td style="padding: 8px 2px; text-align: center;">
+                ${isDel 
+                    ? `<button type="button" onclick="adminToggleDelete('${book._uid}')" style="background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 6px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'" onmouseout="this.style.borderColor='var(--border)'" title="Obnovit">↩️</button>`
+                    : `<button type="button" onclick="adminToggleDelete('${book._uid}')" style="background: transparent; border: none; font-size: 1.1rem; cursor: pointer; opacity: 0.5; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px;" onmouseover="this.style.opacity='1'; this.style.background='rgba(239, 68, 68, 0.1)'" onmouseout="this.style.opacity='0.5'; this.style.background='transparent'" title="Odstranit dílo">🗑️</button>`
+                }
+            </td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+    
+    const indexInput = document.getElementById('admin-index');
+    if (indexInput) indexInput.value = visualId;
+};
+
+window.adminAddBook = function() {
+    const dilo = document.getElementById('admin-dilo').value.replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ');
+    const autor = document.getElementById('admin-autor').value.replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ');
     const obdobi = document.getElementById('admin-obdobi').value;
     const druh = document.getElementById('admin-druh').value;
-    const targetId = parseInt(document.getElementById('admin-index').value, 10);
+    let targetId = parseInt(document.getElementById('admin-index').value, 10);
 
-    if (!dilo || !autor || isNaN(targetId) || targetId < 1) {
-        showToast("⚠️ Vyplňte všechna pole a zadejte platné Cílové ID.");
-        return;
-    }
+    if (!dilo || !autor) return showToast("⚠️ Název a autor jsou povinní.");
+
+    let insertIndex = adminVirtualDb.length;
+    let currentVisId = 1;
     
-    let posunuto = 0;
-    stagingQueue.forEach(item => {
-        if (item.targetId >= targetId) {
-            item.targetId += 1;
-            posunuto++;
-        }
+    for (let i = 0; i < adminVirtualDb.length; i++) {
+        if (currentVisId === targetId) { insertIndex = i; break; }
+        if (!adminVirtualDb[i]._isDeleted) currentVisId++;
+    }
+
+    adminVirtualDb.splice(insertIndex, 0, {
+        dilo, autor, obdobi, druh,
+        _isAdded: true, _isDeleted: false, _isEdited: false,
+        _uid: Math.random().toString(36).substr(2, 9)
     });
 
-    stagingQueue.push({ targetId, dilo, autor, obdobi, druh });
-    renderStagingQueue();
+    adminEvaluateChanges(); // Přepočet indexů pro všechny pod ním
+    isSafeToExit = false;
+    renderAdminTable();
+    document.getElementById('admin-dilo').value = '';
+    document.getElementById('admin-autor').value = '';
+    showToast("➕ Dílo vloženo do databáze.");
+};
+
+window.adminUpdateBook = function(uid, field, value) {
+    const book = adminVirtualDb.find(k => k._uid === uid);
+    if (!book) return;
+    book[field] = value.trim();
     
-    if (posunuto > 0) {
-        const textDila = posunuto === 1 ? "Následujícímu 1 dílu" : `Následujícím ${posunuto} dílům`;
-        showToast(`➕ Vloženo na pozici ${targetId}. ${textDila} se zvýšilo ID o 1.`);
+    adminEvaluateChanges(); // Okamžitá evaluace vůči originálu
+    isSafeToExit = false;
+    renderAdminTable();
+};
+
+window.adminToggleDelete = function(uid) {
+    const bookIndex = adminVirtualDb.findIndex(k => k._uid === uid);
+    if (bookIndex === -1) return;
+    
+    if (adminVirtualDb[bookIndex]._isAdded) {
+        adminVirtualDb.splice(bookIndex, 1);
+        showToast("🗑️ Nové dílo zrušeno.");
     } else {
-        showToast(`➕ Dílo úspěšně zařazeno na konec seznamu.`);
+        adminVirtualDb[bookIndex]._isDeleted = !adminVirtualDb[bookIndex]._isDeleted;
+        showToast(adminVirtualDb[bookIndex]._isDeleted ? "🗑️ Označeno ke smazání." : "↩️ Dílo obnoveno.");
     }
     
-    document.getElementById('admin-dilo').value = "";
-    document.getElementById('admin-dilo').focus();
-    navrhniDalsiVolneId(); 
+    adminEvaluateChanges(); // Přepočet posunů vzniklých smazáním/obnovením
+    isSafeToExit = false;
+    renderAdminTable();
 };
 
-window.addToDeleteQueue = function() {
-    const idInput = document.getElementById('admin-delete-id');
-    const idVal = parseInt(idInput.value);
-    
-    if (isNaN(idVal) || idVal < 1 || idVal > window.OMEGA_CONFIG.KNIHY_DB.length) {
-        showToast("⚠️ Zadejte platné ID existujícího díla.");
-        return;
-    }
-    
-    if (!deleteQueue.includes(idVal)) {
-        deleteQueue.push(idVal);
-        
-        let posunuto = 0;
-        stagingQueue.forEach(item => {
-            if (item.targetId > idVal) {
-                item.targetId -= 1;
-                posunuto++;
-            }
-        });
+// --- 🚀 OMEGA TELEPORT ENGINE (Nativní Modál s telemetrií) ---
+let currentTeleportId = null;
 
-        renderStagingQueue();
-        navrhniDalsiVolneId();
-        
-        if (posunuto > 0) {
-            const textDila = posunuto === 1 ? "Následujícímu 1 dílu" : `Následujícím ${posunuto} dílům`;
-            showToast(`🗑️ ID ${idVal} odstraněno. ${textDila} ve frontě se snížilo ID o 1.`);
-        } else {
-            showToast(`🗑️ Dílo ID ${idVal} bude odstraněno ze seznamu.`);
-        }
-    } else {
-        showToast("⚠️ Toto dílo už je ve frontě pro smazání.");
-    }
-    idInput.value = "";
+window.openTeleportModal = function(oldId) {
+    currentTeleportId = oldId;
+    document.getElementById('teleport-old-id-display').innerText = oldId;
+    
+    const input = document.getElementById('teleport-new-id-input');
+    const errorDisplay = document.getElementById('teleport-error-msg');
+    
+    input.value = '';
+    input.max = adminVirtualDb.length;
+    input.style.borderColor = "var(--border, #d1d5db)"; // Reset UI
+    if (errorDisplay) errorDisplay.innerText = ''; // Vyčištění starých chyb
+    
+    document.getElementById('omega-teleport-modal').style.display = 'flex';
+    setTimeout(() => input.focus(), 100);
 };
 
-window.removeFromQueue = function(index, type) {
-    if (type === 'add') {
-        const removedTargetId = stagingQueue[index].targetId;
-        stagingQueue.splice(index, 1);
-        
-        let posunuto = 0;
-        stagingQueue.forEach(item => {
-            if (item.targetId > removedTargetId) {
-                item.targetId -= 1;
-                posunuto++;
-            }
-        });
-
-        if (posunuto > 0) {
-            const textDila = posunuto === 1 ? "Následujícímu 1 dílu" : `Následujícím ${posunuto} dílům`;
-            showToast(`ℹ️ Přidání zrušeno. ${textDila} ve frontě se snížilo ID o 1.`);
-        } else {
-            showToast(`ℹ️ Přidání díla bylo zrušeno.`);
-        }
-    }
-    
-    if (type === 'delete') {
-        const restoredId = deleteQueue[index];
-        deleteQueue.splice(index, 1);
-        
-        let posunuto = 0;
-        stagingQueue.forEach(item => {
-            if (item.targetId >= restoredId) {
-                item.targetId += 1;
-                posunuto++;
-            }
-        });
-
-        if (posunuto > 0) {
-            const textDila = posunuto === 1 ? "Následujícímu 1 dílu" : `Následujícím ${posunuto} dílům`;
-            showToast(`ℹ️ Smazání zrušeno. ${textDila} ve frontě se zvýšilo ID o 1.`);
-        } else {
-            showToast(`ℹ️ Smazání díla ID ${restoredId} bylo zrušeno.`);
-        }
-    }
-    
-    renderStagingQueue();
-    navrhniDalsiVolneId();
+window.closeTeleportModal = function() {
+    document.getElementById('omega-teleport-modal').style.display = 'none';
+    currentTeleportId = null;
 };
 
-window.renderStagingQueue = function() {
-    const container = document.getElementById('staging-queue-list');
-    let html = "";
-    const badgeStyle = "display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; margin-right: 12px; letter-spacing: 0.5px; text-transform: uppercase;";
+window.confirmTeleport = function() {
+    if (!currentTeleportId) return;
 
-    const sortedDeleteQueue = [...deleteQueue].sort((a, b) => a - b);
-    const sortedStagingQueue = [...stagingQueue].sort((a, b) => a.targetId - b.targetId);
+    const input = document.getElementById('teleport-new-id-input');
+    const errorDisplay = document.getElementById('teleport-error-msg');
+    let newId = parseInt(input.value);
+    let oldId = currentTeleportId;
+    let maxId = adminVirtualDb.length;
 
-    sortedDeleteQueue.forEach((id) => {
-        const originalIndex = deleteQueue.indexOf(id); 
-        const kniha = window.OMEGA_CONFIG.KNIHY_DB.find(k => k.id === id);
-        const nazev = kniha ? kniha.dilo : "Neznámé dílo";
-        
-        html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: rgba(218, 33, 40, 0.05); border: 1px solid rgba(218, 33, 40, 0.2); border-radius: 6px;">
-            <div style="display: flex; align-items: center;">
-                <span style="${badgeStyle} background: rgba(218, 33, 40, 0.1); color: var(--accent-red, #da2128);">Odebrat ID ${id}</span>
-                <strong style="color: var(--text-main); font-size: 0.95rem;">${nazev}</strong>
-            </div>
-            <button type="button" onclick="removeFromQueue(${originalIndex}, 'delete')" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; color: var(--text-muted); font-size: 0.75rem; font-weight: bold;">Zrušit</button>
-        </div>`;
+    // Reset chybového stavu před novou evaluací
+    input.style.borderColor = "var(--border, #d1d5db)";
+    if (errorDisplay) errorDisplay.innerText = '';
+
+    // Helper pro výpis chyby
+    const throwError = (msg) => {
+        input.style.borderColor = "var(--accent-red, #ef4444)";
+        if (errorDisplay) errorDisplay.innerText = msg;
+    };
+
+    // 🚀 OMEGA: Exaktní sémantická validace
+    if (isNaN(newId)) return throwError("Zadejte platné číslo.");
+    if (newId < 1) return throwError("ID nemůže být menší než 1.");
+    if (newId > maxId) return throwError(`Databáze má pouze ${maxId} děl. Nelze přeskočit limit.`);
+    if (newId === oldId) return throwError("Dílo se již na této pozici nachází.");
+
+    // Matematický posun v poli
+    let oldIndex = oldId - 1;
+    let newIndex = newId - 1;
+    let movedItem = adminVirtualDb.splice(oldIndex, 1)[0];
+
+    // Zvýrazníme žlutě POUZE to dílo, které s uživatel explicitně přesunul
+    if (!movedItem._isAdded) {
+        movedItem._isEdited = true;
+        if (!movedItem._moveHistory) movedItem._moveHistory = [];
+        movedItem._moveHistory.push({ from: oldId, to: newId });
+    }
+
+    adminVirtualDb.splice(newIndex, 0, movedItem);
+
+    // Tiše přepočítáme ID u zbytku
+    adminVirtualDb.forEach((book, idx) => {
+        book.id = idx + 1;
     });
 
-    sortedStagingQueue.forEach((item) => {
-        const originalIndex = stagingQueue.findIndex(b => b.targetId === item.targetId);
-        
-        html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-bottom: 8px; background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 6px;">
-            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
-                <span style="${badgeStyle} background: rgba(34, 197, 94, 0.1); color: #16a34a;">Nové ID ${item.targetId}</span>
-                <strong style="color: var(--text-main); font-size: 0.95rem;">${sanitize(item.dilo)}</strong>
-                <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 4px;">(${sanitize(item.autor)})</span>
-            </div>
-            <button type="button" onclick="removeFromQueue(${originalIndex}, 'add')" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; color: var(--text-muted); font-size: 0.75rem; font-weight: bold;">Zrušit</button>
-        </div>`;
-    });
-
-    if (html === "") {
-        html = `
-        <div style="text-align: center; padding: 1rem 0; opacity: 0.5;">
-            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">📥</div>
-            <em style="color: var(--text-muted); font-size: 0.9rem;">Zatím nebyla připravena žádná díla...</em>
-        </div>`;
-        container.style.border = "1px dashed var(--border)";
-        container.style.background = "transparent";
-    } else {
-        container.style.border = "none";
-        container.style.background = "transparent";
-    }
-    
-    container.innerHTML = html;
+    closeTeleportModal();
+    renderAdminTable(); 
+    if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
 };
+
+// Záchyt Enter klávesy
+document.getElementById('teleport-new-id-input')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') confirmTeleport();
+});
+
+// Enter key v modálu potvrdí teleport
+document.getElementById('teleport-new-id-input')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') confirmTeleport();
+});
 
 // --- 🚑 DISASTER RECOVERY & AUTO-SNAPSHOT ---
 
@@ -1748,62 +2055,41 @@ window.executeFinalRecovery = function() {
 // --- 🧬 OMEGA EXPORT ENGINE (Zero-Trust Edition) ---
 
 window.prepareDatabaseExport = async function() {
-    // 1. 🛡️ ZERO-TRUST BARIÉRA: Extrakce Turnstile Tokenu
     const turnstileInput = document.querySelector('[name="cf-turnstile-response"]');
     const turnstileToken = turnstileInput ? turnstileInput.value : null;
 
     if (!turnstileToken) {
-        showToast("⚠️ Bezpečnostní systém Cloudflare vás ještě neověřil. Zkuste to za okamžik znovu.");
-        console.warn("OMEGA Edge Security: Chybí Turnstile token.");
-        return; // Zastaví exekuci, modál se vůbec neotevře
+        showToast("⚠️ Bezpečnostní systém Cloudflare vás ještě neověřil.");
+        return;
     }
 
-    // 2. Kontrola logiky aplikace
-    if (stagingQueue.length === 0 && deleteQueue.length === 0) {
-        showToast("⚠️ Fronta změn je prázdná. Připravte alespoň jedno dílo.");
+    const addedCount = adminVirtualDb.filter(k => k._isAdded).length;
+    const editedCount = adminVirtualDb.filter(k => k._isEdited && !k._isDeleted).length;
+    const deletedCount = adminVirtualDb.filter(k => k._isDeleted && !k._isAdded).length;
+
+    if (addedCount === 0 && editedCount === 0 && deletedCount === 0) {
+        showToast("⚠️ Nebyly provedeny žádné změny.");
         return;
     }
 
     await createAutoSnapshot();
 
-    let origBooks = window.OMEGA_CONFIG.KNIHY_DB.filter(k => !deleteQueue.includes(k.id));
     let newDb = [];
-    let origPtr = 0; 
-    let pendingBooks = [...stagingQueue]; 
-    const finalSize = origBooks.length + pendingBooks.length;
+    let counter = 1;
 
-    for (let currentId = 1; currentId <= finalSize; currentId++) {
-        const newBookIndex = pendingBooks.findIndex(b => b.targetId === currentId);
-        if (newBookIndex !== -1) {
-            const newBook = pendingBooks[newBookIndex];
-            newDb.push({ id: currentId, dilo: newBook.dilo, autor: newBook.autor, druh: newBook.druh, obdobi: newBook.obdobi });
-            pendingBooks.splice(newBookIndex, 1); 
-        } else if (origPtr < origBooks.length) {
-            const oldBook = origBooks[origPtr];
-            newDb.push({ id: currentId, dilo: oldBook.dilo, autor: oldBook.autor, druh: oldBook.druh, obdobi: oldBook.obdobi });
-            origPtr++; 
+    adminVirtualDb.forEach(book => {
+        if (!book._isDeleted) {
+            newDb.push({
+                id: counter++,
+                dilo: sanitize(book.dilo),
+                autor: sanitize(book.autor),
+                druh: book.druh,
+                obdobi: book.obdobi
+            });
         }
-    }
-    
-    if (pendingBooks.length > 0) {
-        pendingBooks.forEach(orphan => {
-            newDb.push({ id: newDb.length + 1, dilo: orphan.dilo, autor: orphan.autor, druh: orphan.druh, obdobi: orphan.obdobi });
-        });
-    }
+    });
 
-    // 🛡️ ZERO-TRUST SERIALIZACE: Extrémní sanitizace a bezpečný formát
-    const sanitizedDb = newDb.map(k => ({
-        id: k.id,
-        dilo: sanitize(k.dilo),     // Trvalá ochrana proti Stored XSS
-        autor: sanitize(k.autor),   // Trvalá ochrana proti Stored XSS
-        druh: k.druh,
-        obdobi: k.obdobi
-    }));
-
-    // V8 JSON.stringify zaručuje matematicky čistý syntax bez Backslash Crashů
-    // Parametr 'null, 8' zajistí nádherné odsazení, aby kód na GitHubu vypadal profesionálně
-    const formattedDbString = JSON.stringify(sanitizedDb, null, 8).replace(/^/gm, '    ');
-
+    const formattedDbString = JSON.stringify(newDb, null, 8).replace(/^/gm, '    ');
     const today = new Date().toLocaleDateString('cs-CZ');
 
     pendingExportPayload = `// =====================================================================
@@ -1838,18 +2124,19 @@ window.OMEGA_CONFIG = {
     const summary = document.getElementById('confirm-modal-summary');
     
     summary.innerHTML = `
-        • Počet děl k odstranění: <strong style="color: var(--accent-red)">${deleteQueue.length}</strong><br>
-        • Počet nových děl k přidání: <strong style="color: var(--accent-green)">${stagingQueue.length}</strong><br>
+        • Počet děl k odstranění: <strong style="color: var(--accent-red)">${deletedCount}</strong><br>
+        • Počet nových děl k přidání: <strong style="color: var(--accent-green)">${addedCount}</strong><br>
+        • Počet upravených děl: <strong style="color: #f59e0b">${editedCount}</strong><br>
         • Výsledný počet knih v DB: <strong>${newDb.length}</strong>
     `;
 
     modal.style.display = 'flex';
     
     const finalExecuteBtn = document.getElementById('btn-final-execute');
-    finalExecuteBtn.disabled = false; // Reset při otevření modálu (kdyby náhodou)
+    finalExecuteBtn.disabled = false; 
     
     finalExecuteBtn.onclick = () => {
-        finalExecuteBtn.disabled = true; // 🛡️ OBRANA PROTI DOUBLE-CLICK RACE CONDITION
+        finalExecuteBtn.disabled = true; 
         closeConfirmModal();
         pushToCloudflare(pendingExportPayload, turnstileToken);
     };
@@ -1888,9 +2175,6 @@ function pushToCloudflare(fileContent, turnstileToken) {
         if (!response.ok) throw new Error(data.error || "Neznámá chyba serveru.");
         
         msgEl.innerHTML = `✅ <strong>AKTUALIZACE ÚSPĚŠNÁ!</strong><br>Databáze byla exaktně zapsána do repozitáře.<br><br><span style="color:var(--accent-primary)">Změny se plně propagují za cca 30-60 sekund.</span>`;
-        
-        stagingQueue = [];
-        deleteQueue = [];
         pendingExportPayload = null;
         renderStagingQueue();
         if (typeof navrhniDalsiVolneId === 'function') navrhniDalsiVolneId();
@@ -1938,7 +2222,7 @@ window.closeAdminConfirmationModal = function() {
     document.getElementById('admin-confirmation-modal').style.display = 'none';
 };
 
-// --- 🕵️ STEALTH GATEWAY ---
+// --- 🕵️ STEALTH GATEWAY (5-CLICK TRIGGER PRO MODÁL) ---
 (function() {
     const buildNode = document.getElementById('app-build-info');
     if (!buildNode) return;
@@ -1952,8 +2236,21 @@ window.closeAdminConfirmationModal = function() {
         setTimeout(() => buildNode.style.opacity = "1", 100);
         clearTimeout(interactionTimer);
 
+        // 🚀 OMEGA FIX: Po 5 kliknutích otevřeme modál, žádné přesměrování URL
         if (interactionCount >= 5) {
-            window.location.search = atob("P21hdF9jZXRfYWRtaW49dHJ1ZQ=="); 
+            interactionCount = 0; // Reset počítadla
+            
+            const authModal = document.getElementById('omega-auth-modal');
+            const pwdInput = document.getElementById('admin-password-input');
+            const errorMsg = document.getElementById('auth-error-msg');
+            
+            if (authModal) {
+                if (pwdInput) pwdInput.value = '';
+                if (errorMsg) errorMsg.style.display = 'none';
+                
+                authModal.style.display = 'flex';
+                setTimeout(() => { if (pwdInput) pwdInput.focus(); }, 100);
+            }
         }
 
         interactionTimer = setTimeout(() => {
@@ -1997,4 +2294,205 @@ window.turnstileExpiredExport = function() {
         statusEl.innerHTML = "⚠️ Platnost podpisu vypršela. Obnovuji...";
         statusEl.style.color = "var(--accent-red, #da2128)";
     }
+};
+
+
+// --- 🖨️ WYSIWYG PDF GENERATOR (Precise Alignment Edition) ---
+window.openAdminPdfEditor = function() {
+    const container = document.getElementById('admin-print-document');
+    const modal = document.getElementById('admin-print-editor-modal');
+    if (!container || !modal) return;
+
+    let dataSource = typeof adminVirtualDb !== 'undefined' && adminVirtualDb.length > 0 
+                     ? adminVirtualDb.filter(k => !k._isDeleted) 
+                     : window.OMEGA_CONFIG.KNIHY_DB;
+
+    const chrono = getOmegaChronology();
+    const imgUrl = window.location.origin + window.location.pathname.replace('index.html', '').replace(/\/$/, '') + '/spspb-logo-2000px.png';
+
+    const printObdobi = {
+        "do18": "Do konce 18. st.",
+        "19": "19. století",
+        "svet20": "Svět 20. a 21. st.",
+        "cz20": "ČR 20. a 21. st."
+    };
+
+    // --- DYNAMICKÉ OVLÁDÁNÍ OBORŮ ---
+    window.adminRemoveOborRow = function(btn) {
+        btn.closest('tr').remove();
+    };
+    window.adminAddOborRow = function() {
+        const tbody = document.getElementById('admin-obory-tbody');
+        const tr = document.createElement('tr');
+        const btnStyle = "position: absolute; left: 2px; top: 50%; transform: translateY(-50%); background: transparent; color: #ef4444; border: none; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;";
+        tr.innerHTML = `
+            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>NOVÝ OBOR</td>
+            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Nový ŠVP</td>
+        `;
+        tbody.insertBefore(tr, tbody.lastElementChild);
+    };
+
+    // --- GENERACE TABULKY KNIH ---
+    let tableRows = `
+        <tr style="background: white;">
+            <td style="border-right: 0.5pt solid black; border-bottom: 1.5pt solid black; padding: 3px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 9.5pt; text-transform: uppercase;">Č.S.</td>
+            <td style="border-right: 0.5pt solid black; border-bottom: 1.5pt solid black; padding: 3px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 9.5pt; text-transform: uppercase;">AUTOR</td>
+            <td style="border-right: 0.5pt solid black; border-bottom: 1.5pt solid black; padding: 3px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 9.5pt; text-transform: uppercase;">DÍLO</td>
+            <td style="border-right: 0.5pt solid black; border-bottom: 1.5pt solid black; padding: 3px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 9.5pt; text-transform: uppercase;">LIT. DRUH</td>
+            <td style="border-bottom: 1.5pt solid black; padding: 3px; text-align: center; vertical-align: middle; font-weight: bold; font-size: 9.5pt; text-transform: uppercase;">OBDOBÍ</td>
+        </tr>
+    `;
+
+    let counter = 1;
+    dataSource.forEach((book, index) => {
+        const isLast = index === dataSource.length - 1;
+        const bottomBorder = isLast ? 'none' : '0.5pt solid black';
+        
+        tableRows += `
+            <tr style="line-height: 1.15; page-break-inside: avoid;">
+                <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: center; vertical-align: middle; font-size: 9.5pt; font-weight: bold;">${counter}.</td>
+                <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; vertical-align: middle; font-size: 9.5pt; font-weight: bold;">${sanitize(book.autor)}</td>
+                <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; vertical-align: middle; font-size: 9.5pt; font-weight: bold;">${sanitize(book.dilo)}</td>
+                <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: center; vertical-align: middle; font-size: 9.5pt;">${book.druh}</td>
+                <td style="border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: left; vertical-align: middle; font-size: 9.5pt;">${printObdobi[book.obdobi] || book.obdobi}</td>
+            </tr>
+        `;
+        counter++;
+    });
+
+    const btnStyle = "position: absolute; left: 2px; top: 50%; transform: translateY(-50%); background: transparent; color: #ef4444; border: none; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;";
+
+    // --- HLAVNÍ DOKUMENT ---
+    container.innerHTML = `
+        <style>
+            /* 🚀 OMEGA HACK: Absolutní karanténa proti Dark Mode */
+            #admin-print-document { background-color: white !important; }
+            #admin-print-document td, 
+            #admin-print-document th { background-color: white !important; color: black !important; border-color: black !important; }
+            #admin-print-document .editable-field { color: black !important; }
+        </style>
+        <div style="font-family: Arial, Helvetica, sans-serif; color: black; line-height: 1.2; padding: 0; font-feature-settings: 'liga' 0, 'calt' 0; -webkit-font-smoothing: antialiased;">
+            
+            <table style="width: 100%; border: none; border-collapse: collapse;">
+                
+                <thead style="display: table-header-group; border: none;">
+                    <tr>
+                        <td style="width: 65px; border: none; padding: 0 0 10px 0; vertical-align: middle;">
+                            <img src="${imgUrl}" style="width: 58px; height: auto; display: block; -webkit-print-color-adjust: exact;">
+                        </td>
+                        <td style="border: none; padding: 0 0 10px 5px; vertical-align: middle;">
+                            <div class="editable-field" contenteditable="true" style="font-size: 10.5pt;">Střední průmyslová škola a Vyšší odborná škola Příbram II, Hrabákova 271</div>
+                        </td>
+                    </tr>
+                </thead>
+
+                <tbody style="border: none;">
+                    <tr>
+                        <td colspan="2" style="border: none; padding: 0;">
+
+                            <div style="display: flex; width: 100%; margin-bottom: 12px; margin-top: -30px; position: relative; z-index: 10;">
+                                <div style="width: 65px; flex-shrink: 0;"></div>
+                                <div style="flex-grow: 1; padding-left: 5px;">
+                                    <div class="editable-field" contenteditable="true" style="font-size: 10.5pt; font-weight: bold; text-transform: uppercase;">
+                                        SEZNAM LITERÁRNÍCH DĚL K MZ - ÚSTNÍ ČÁST ŠK. ROK ${chrono.format}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="position: relative;">
+                                <button class="no-print" onclick="adminAddOborRow()" style="position: absolute; right: 0; top: -30px; background: #10b981; color: white; border: none; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; z-index: 100;">➕ Přidat obor</button>
+                                <table style="width: 100%; border: 1.5pt solid black; border-collapse: separate; border-spacing: 0; margin-bottom: 10px; font-size: 9.5pt;">
+                                    <tbody id="admin-obory-tbody">
+                                        <tr style="background: white;">
+                                            <td style="width: 50%; border-right: 1pt solid black; border-bottom: 1pt solid black; padding: 2px 5px; font-weight: bold; text-align: left;">Obor vzdělávání:</td>
+                                            <td style="width: 50%; border-bottom: 1pt solid black; padding: 2px 5px; font-weight: bold; text-align: left;">ŠVP:</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>23-41-M/01 STROJÍRENSTVÍ</td>
+                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Strojírenství počítačové</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>26-41-M/01 ELEKTROTECHNIKA</td>
+                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Multimedia a informatika</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>26-41-M/01 ELEKTROTECHNIKA</td>
+                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Počítačové technologie</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>18-20M/01 INFORMAČNÍ TECHNOLOGIE</td>
+                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Informační technologie</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>36-47-M/01 STAVEBNICTVÍ</td>
+                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Pozemní stavitelství</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border-right: 1pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>36-47-M/01 STAVEBNICTVÍ</td>
+                                            <td style="padding: 1.5px 5px;" class="editable-field" contenteditable="true">Pozemní stavitelství a architektura</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <table style="width: 100%; border-collapse: collapse; border-left: 1.5pt solid black; border-right: 1.5pt solid black; margin-bottom: 12px; table-layout: fixed;">
+                                <colgroup>
+                                    <col style="width: 5.5%;">
+                                    <col style="width: 26%;">
+                                    <col style="width: 37.5%;">
+                                    <col style="width: 13%;">
+                                    <col style="width: 18%;">
+                                </colgroup>
+                                <thead style="display: table-header-group;">
+                                    <tr><th colspan="5" style="padding: 0; height: 1px; border-top: 1.5pt solid black;"><div style="height: 0;"></div></th></tr>
+                                </thead>
+                                <tfoot style="display: table-footer-group;">
+                                    <tr><td colspan="5" style="padding: 0; height: 1px; border-bottom: 1.5pt solid black;"><div style="height: 0;"></div></td></tr>
+                                </tfoot>
+                                <tbody>
+                                    ${tableRows}
+                                </tbody>
+                            </table>
+
+                            <table style="width: 100%; border: 1.5pt solid black; border-collapse: separate; border-spacing: 0; font-size: 9.5pt; margin-bottom: 12px; page-break-inside: avoid;">
+                                <tbody style="border: none;">
+                                    <tr>
+                                        <td rowspan="4" style="width: 12%; text-align: center; vertical-align: middle; font-weight: bold; border-right: 1pt solid black; padding: 2px;">20<br>literárních<br>děl</td>
+                                        <td style="width: 58%; border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 2px 6px;">Světová a česká literatura do konce 18. stol.</td>
+                                        <td style="width: 30%; border-bottom: 0.5pt solid black; padding: 2px 6px;">min. 2 díla</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 2px 6px;">Světová a česká literatura 19. stol.</td>
+                                        <td style="border-bottom: 0.5pt solid black; padding: 2px 6px;">min. 3 díla</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 2px 6px;">Světová literatura 20. a 21. století</td>
+                                        <td style="border-bottom: 0.5pt solid black; padding: 2px 6px;">min. 4 díla</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border-right: 1pt solid black; padding: 2px 6px;">Česká literatura 20. a 21. století</td>
+                                        <td style="padding: 2px 6px;">min. 5 děl</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div style="page-break-inside: avoid; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                                <div class="editable-field" contenteditable="true" style="font-size: 9.5pt; font-weight: bold; margin-bottom: 15px; line-height: 1.3; width: 100%;">
+                                    Žák sestavuje svůj seznam = 20 lit. děl z předloženého školního seznamu, musí být zastoupena vždy alespoň 2x lyrika, epika, drama.
+                                </div>
+
+                                <div class="editable-field" contenteditable="true" style="font-size: 10pt; margin-top: 5px; width: 100%;">
+                                    V Příbrami dne .................................. stanovil ředitel školy PaedDr. Tomáš Hlaváč
+                                </div>
+                            </div>
+
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    document.body.classList.add('omega-admin-printing');
 };
