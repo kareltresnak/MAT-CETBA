@@ -262,9 +262,13 @@
         
         <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: 2rem; gap: 12px;">
             
-            <div style="justify-self: start;">
+            <div style="justify-self: start; display: flex; gap: 10px; align-items: center;">
                 <button onclick="attemptAdminExit()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s;" onmouseover="this.style.color='var(--text-main)'; this.style.borderColor='var(--text-main)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
                     🔙 Opustit administraci a vrátit se do aplikace
+                </button>
+                
+                <button id="btn-master-admin" onclick="document.getElementById('omega-user-modal').style.display='flex'" style="display: none; background: rgba(89, 166, 122, 0.1); border: 1px solid var(--accent-primary); color: var(--accent-primary); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='var(--accent-primary)'; this.style.color='white';">
+                    👥 Přidat učitele
                 </button>
             </div>
 
@@ -602,6 +606,54 @@
             <button class="btn" onclick="window.location.reload()" style="background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); font-weight: bold; width: 100%; padding: 12px;">
                 🔙 Rozumím (Zpět do aplikace)
             </button>
+        </div>
+    </div>
+    <div id="omega-user-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-surface); border: 1px solid var(--accent-primary); border-radius: 8px; padding: 25px; width: 90%; max-width: 400px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); color: var(--text-main); display: flex; flex-direction: column; max-height: 90vh;">
+            
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--text-main); display: flex; align-items: center; gap: 10px;">
+                👥 Správa přístupů (Katedra)
+            </h3>
+            
+            <div style="background: var(--bg-base); padding: 15px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 20px;">
+                <input type="text" id="new-user-name" class="styled-input" placeholder="Nové jméno (např. novakova)..." autocomplete="off" style="margin-bottom: 10px; width: 100%; box-sizing: border-box;">
+                <input type="password" id="new-user-pwd" class="styled-input" placeholder="Nové heslo..." autocomplete="new-password" style="margin-bottom: 10px; width: 100%; box-sizing: border-box;">
+                
+                <div id="pwd-strength-container" style="text-align: left; margin-bottom: 15px;">
+                    <div style="height: 4px; width: 100%; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-bottom: 8px;">
+                        <div id="pwd-strength-bar" style="height: 100%; width: 0%; background: var(--accent-red); transition: width 0.3s, background 0.3s;"></div>
+                    </div>
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.7rem; color: var(--text-muted); line-height: 1.6; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                        <li id="rule-len">❌ Min. 12 znaků</li>
+                        <li id="rule-upper">❌ 2 velká písmena</li>
+                        <li id="rule-num">❌ 2 číslice</li>
+                        <li id="rule-sym">❌ 2 speciální znaky</li>
+                    </ul>
+                </div>
+
+                <button type="button" id="btn-create-user" class="btn success-btn" onclick="executeCreateUser()" style="width: 100%; font-size: 0.85rem; padding: 10px;" disabled>Vytvořit / Změnit heslo</button>
+            </div>
+
+            <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Aktivní účty</h4>
+            <div id="admin-user-list" style="flex: 1; overflow-y: auto; background: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 20px; font-size: 0.85rem;">
+                <div style="text-align: center; color: var(--text-muted); padding: 10px;">⏳ Načítám z Cloudflare...</div>
+            </div>
+
+            <button type="button" class="btn" onclick="closeUserModal()" style="background: transparent; border: 1px solid var(--border); color: var(--text-main); width: 100%;">Zavřít správu</button>
+        </div>
+    </div>
+    <div id="omega-delete-user-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); z-index: 10005; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-surface); border: 1px solid var(--accent-red); border-radius: 8px; padding: 25px; width: 90%; max-width: 400px; box-shadow: 0 15px 40px rgba(218, 33, 40, 0.2); color: var(--text-main); text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--accent-red);">Odstranit přístup</h3>
+            <p style="margin-bottom: 25px; font-size: 0.95em; color: var(--text-muted);">
+                Opravdu chcete nenávratně smazat přístup pro účet:<br>
+                <strong id="delete-user-name" style="color: var(--text-main); font-size: 1.2em; display: block; margin-top: 10px;"></strong>
+            </p>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" class="btn" onclick="closeDeleteUserModal()" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">Zrušit</button>
+                <button type="button" class="btn danger-btn" onclick="confirmDeleteUser()" style="flex: 1; background: var(--accent-red); color: white; border: none; font-weight: bold;">Smazat účet</button>
+            </div>
         </div>
     </div>
     <div id="omega-print-layer"></div>

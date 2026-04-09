@@ -1215,6 +1215,10 @@ window.switchAdminMode = function(mode) {
     // Pokud uživatel klikl na Audit Log, okamžitě ho matematicky přepočítáme
     if (mode === 'summary' && typeof window.renderAdminSummary === 'function') {
         window.renderAdminSummary();
+        // 🚀 OMEGA FIX: Spustí stahování historie a připojí ji pod lokální změny
+        if (typeof window.fetchPrivateAuditLog === 'function') {
+            window.fetchPrivateAuditLog();
+        }
     }
 };
 
@@ -1272,28 +1276,28 @@ window.renderAdminSummary = function() {
 
     if (added.length > 0) {
         html += `<div style="margin-bottom: 15px; padding-left: 12px; border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: flex-start;">
-            <span style="color: #10b981; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">➕ Přidáno:</span> 
+            <span style="color: #10b981; font-weight: 800; width: 110px; white-space: no-wrap; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">➕ Přidáno:</span> 
             <div style="line-height: 1.5;">${added.join('<span style="color: var(--border); margin: 0 8px;">|</span>')}</div>
         </div>`;
     }
 
     if (edited.length > 0) {
         html += `<div style="margin-bottom: 15px; padding-left: 12px; border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: flex-start;">
-            <span style="color: #f59e0b; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">✏️ Změněno:</span> 
+            <span style="color: #f59e0b; font-weight: 800; width: 110px; white-space: no-wrap; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">✏️ Změněno:</span> 
             <div style="line-height: 1.5;">${edited.join('<span style="color: var(--border); margin: 0 8px;">|</span>')}</div>
         </div>`;
     }
 
     if (deleted.length > 0) {
         html += `<div style="margin-bottom: 15px; padding-left: 12px; border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: flex-start;">
-            <span style="color: #ef4444; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">🗑️ Odebráno:</span> 
+            <span style="color: #ef4444; font-weight: 800; width: 110px; white-space: no-wrap; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">🗑️ Odebráno:</span> 
             <div style="line-height: 1.5;">${deleted.join('<span style="color: var(--border); margin: 0 8px;">|</span>')}</div>
         </div>`;
     }
 
     if (orderChanged) {
         html += `<div style="padding-left: 12px; border-left: 4px solid #3b82f6; background: rgba(59, 130, 246, 0.05); padding-top: 8px; padding-bottom: 8px; border-radius: 0 6px 6px 0; display: flex; align-items: center;">
-            <span style="color: #3b82f6; font-weight: 800; width: 90px; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">↕️ Pořadí:</span> 
+            <span style="color: #3b82f6; font-weight: 800; width: 110px; white-space: no-wrap; flex-shrink: 0; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.8rem;">↕️ Pořadí:</span> 
             <div style="line-height: 1.5; color: var(--text-muted); font-size: 0.9em;">V databázi došlo ke změně pořadí děl (Drag & Drop posun).</div>
         </div>`;
     }
@@ -1307,32 +1311,54 @@ let targetRevertHash = "";
 
 window.fetchPrivateAuditLog = async function() {
     const container = document.getElementById('admin-summary-content');
-    container.innerHTML += `<div style="margin-top: 20px; padding: 15px; border-top: 1px dashed var(--border);"><span style="color: var(--accent-primary);">⏳ Kontaktuji privátní repozitář pro stažení historie...</span></div>`;
+    
+    // Vyčistíme případné staré načítací zprávy
+    const oldLoading = document.getElementById('audit-loading-msg');
+    if (oldLoading) oldLoading.remove();
+    
+    container.innerHTML += `<div id="audit-loading-msg" style="margin-top: 20px; padding: 15px; border-top: 1px dashed var(--border);"><span style="color: var(--accent-primary);">⏳ Kontaktuji privátní repozitář pro stažení historie...</span></div>`;
 
     try {
         const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/audit-log", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Omega-Device-Id": getDeviceIdentity() 
+            },
             body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password })
         });
         const data = await response.json();
+        
+        document.getElementById('audit-loading-msg').remove();
+        
         if (!response.ok) throw new Error(data.error || "Přístup odepřen.");
 
         let logHtml = `<h4 style="margin-top: 20px; color: var(--text-main);">Historie z produkce (Git)</h4>`;
-        data.logs.forEach(log => {
-            logHtml += `
-                <div style="margin-bottom: 10px; padding: 10px; background: var(--bg-base); border-left: 3px solid var(--accent-primary-light, var(--accent-rust-light)); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="color: var(--text-muted); margin-bottom: 4px;">📅 ${log.date} | 👤 <strong>${log.user}</strong></div>
-                        <div style="color: var(--text-main);">${log.message}</div>
-                    </div>
-                    <button onclick="prepareRevert('${log.hash}')" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.2s;" onmouseover="this.style.background='rgba(218, 33, 40, 0.1)'" onmouseout="this.style.background='transparent'">
-                        ⏪ Obnovit
-                    </button>
-                </div>`;
-        });
+
+        // 🚀 OMEGA FIX: Filtrace systémových zpráv
+        const validLogs = data.logs.filter(log => log.user !== "Neznámý" && log.user !== "Systém");
+
+        if (validLogs.length === 0) {
+            logHtml += `<p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px;">Zatím nejsou k dispozici žádné uživatelské úpravy.</p>`;
+        } else {
+            // 🚀 ZDE JE OPRAVA: Iterujeme přes validLogs!
+            validLogs.forEach(log => {
+                logHtml += `
+                    <div style="margin-bottom: 10px; padding: 10px; background: var(--bg-base); border-left: 3px solid var(--accent-primary-light, var(--accent-rust-light)); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: var(--text-muted); margin-bottom: 4px;">📅 ${log.date} | 👤 <strong>${log.user}</strong></div>
+                            <div style="color: var(--text-main);">${log.message}</div>
+                        </div>
+                        <button onclick="prepareRevert('${log.hash}')" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: 0.2s;" onmouseover="this.style.background='rgba(218, 33, 40, 0.1)'" onmouseout="this.style.background='transparent'">
+                            ⏪ Obnovit
+                        </button>
+                    </div>`;
+            });
+        }
         container.innerHTML += logHtml;
     } catch (error) {
+        const loadingMsg = document.getElementById('audit-loading-msg');
+        if (loadingMsg) loadingMsg.remove();
         container.innerHTML += `<div style="margin-top: 10px; color: var(--accent-red); font-size: 0.85rem;">❌ Chyba připojení: ${error.message}</div>`;
     }
 };
@@ -1348,7 +1374,11 @@ window.executeRevert = async function() {
     showToast("⏳ Odesílám požadavek na Revert do Cloudflare...");
     try {
         const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/revert", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST", 
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Omega-Device-Id": getDeviceIdentity()
+            },
             body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password, target_commit: targetRevertHash })
         });
         if (!response.ok) throw new Error("Revert selhal na straně serveru.");
@@ -1356,14 +1386,184 @@ window.executeRevert = async function() {
         setTimeout(() => window.location.reload(), 2000);
     } catch (error) { showToast("❌ Chyba: " + error.message); }
 };
+// --- 👑 MASTER ADMIN ENGINE: Kompletní správa identit ---
 
+let isPasswordValid = false;
+
+// Otevření modálu a spuštění načítání
+window.openUserModal = function() {
+    document.getElementById('omega-user-modal').style.display = 'flex';
+    fetchAdminUsers();
+};
+
+window.closeUserModal = function() {
+    document.getElementById('omega-user-modal').style.display = 'none';
+};
+
+// Pokud je v HTML starý inline onclick, přepíšeme ho na tuto novou funkci
+const masterBtnNode = document.getElementById('btn-master-admin');
+if (masterBtnNode) masterBtnNode.onclick = window.openUserModal;
+
+// 🛡️ OMEGA PASSWORD VALIDATOR (Real-time Kinetika)
+const pwdInput = document.getElementById('new-user-pwd');
+if (pwdInput) {
+    pwdInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        
+        // Matematické ověření entropie
+        const rules = {
+            len: val.length >= 12,
+            upper: (val.match(/[A-Z]/g) || []).length >= 2,
+            num: (val.match(/[0-9]/g) || []).length >= 2,
+            sym: (val.match(/[^a-zA-Z0-9]/g) || []).length >= 2
+        };
+
+        // Vizuální odezva na Checkliste
+        document.getElementById('rule-len').innerHTML = rules.len ? '✅ Min. 12 znaků' : '❌ Min. 12 znaků';
+        document.getElementById('rule-upper').innerHTML = rules.upper ? '✅ 2 velká písmena' : '❌ 2 velká písmena';
+        document.getElementById('rule-num').innerHTML = rules.num ? '✅ 2 číslice' : '❌ 2 číslice';
+        document.getElementById('rule-sym').innerHTML = rules.sym ? '✅ 2 speciální znaky' : '❌ 2 speciální znaky';
+
+        // Výpočet naplnění (25% za každé pravidlo)
+        let score = Object.values(rules).filter(Boolean).length;
+        const bar = document.getElementById('pwd-strength-bar');
+        const btn = document.getElementById('btn-create-user');
+
+        bar.style.width = (score * 25) + '%';
+        
+        if (score < 2) bar.style.background = 'var(--accent-red)';
+        else if (score < 4) bar.style.background = '#f59e0b'; // Oranžová
+        else bar.style.background = 'var(--accent-green)'; // Zelená
+
+        isPasswordValid = (score === 4);
+        btn.disabled = !isPasswordValid;
+    });
+}
+
+// 1. ZÁPIS UŽIVATELE (Optimistic UI)
+window.executeCreateUser = async function() {
+    const newUser = document.getElementById('new-user-name').value.trim();
+    const newPwd = document.getElementById('new-user-pwd').value;
+
+    if (!newUser || !isPasswordValid) return showToast("❌ Formulář nesplňuje bezpečnostní požadavky.");
+
+    showToast("⏳ Zapisuji identitu do Cloudflare...");
+    document.getElementById('btn-create-user').disabled = true;
+
+    try {
+        const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/add-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ 
+                admin_username: sessionCredentials.username, 
+                admin_password: sessionCredentials.password,
+                new_username: newUser,
+                new_password: newPwd
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Operace selhala.");
+        
+        showToast("✅ Účet bezpečně uložen.");
+        document.getElementById('new-user-name').value = '';
+        document.getElementById('new-user-pwd').value = '';
+        pwdInput.dispatchEvent(new Event('input')); 
+        
+        // 🚀 OMEGA OPTIMISTIC UI: Okamžité vizuální přidání bez čekání na 10s zpoždění Cloudflare KV
+        const listContainer = document.getElementById('admin-user-list');
+        if (listContainer.innerHTML.includes('Zatím nejsou') || listContainer.innerHTML.includes('Načítám')) {
+            listContainer.innerHTML = '';
+        }
+        listContainer.innerHTML += `
+            <div id="user-row-${newUser.toLowerCase()}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border);">
+                <span style="font-weight: bold; color: var(--text-main);">👤 ${sanitize(newUser)}</span>
+                <button onclick="promptDeleteUser('${newUser.toLowerCase()}')" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); border-radius: 4px; cursor: pointer; padding: 4px 8px; font-size: 0.75rem; transition: 0.2s;" onmouseover="this.style.background='rgba(218,33,40,0.1)'" onmouseout="this.style.background='transparent'">Odstranit</button>
+            </div>
+        `;
+    } catch (error) { showToast("❌ Chyba: " + error.message); }
+};
+
+// 2. VÝPIS UŽIVATELŮ
+window.fetchAdminUsers = async function() {
+    const listContainer = document.getElementById('admin-user-list');
+    listContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 10px;">⏳ Načítám uzly z Edge sítě...</div>';
+
+    try {
+        const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/list-users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        if (data.users.length === 0) {
+            listContainer.innerHTML = '<div style="padding: 10px;">Zatím nejsou vytvořeni žádní učitelé.</div>';
+            return;
+        }
+
+        listContainer.innerHTML = data.users.map(u => `
+            <div id="user-row-${u}" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border);">
+                <span style="font-weight: bold; color: var(--text-main);">👤 ${sanitize(u)}</span>
+                <button onclick="promptDeleteUser('${u}')" style="background: transparent; border: 1px solid var(--accent-red); color: var(--accent-red); border-radius: 4px; cursor: pointer; padding: 4px 8px; font-size: 0.75rem; transition: 0.2s;" onmouseover="this.style.background='rgba(218,33,40,0.1)'" onmouseout="this.style.background='transparent'">Odstranit</button>
+            </div>
+        `).join('');
+
+    } catch (error) { listContainer.innerHTML = `<div style="color: var(--accent-red); padding: 10px;">❌ Nelze načíst uživatele.</div>`; }
+};
+
+// 3. ODSTRANĚNÍ UŽIVATELE (Nativní Omega Modál)
+let pendingUserToDelete = null;
+
+window.promptDeleteUser = function(targetUser) {
+    pendingUserToDelete = targetUser;
+    document.getElementById('delete-user-name').innerText = targetUser;
+    document.getElementById('omega-delete-user-modal').style.display = 'flex';
+};
+
+window.closeDeleteUserModal = function() {
+    document.getElementById('omega-delete-user-modal').style.display = 'none';
+    pendingUserToDelete = null;
+};
+
+window.confirmDeleteUser = async function() {
+    if (!pendingUserToDelete) return;
+    const targetUser = pendingUserToDelete;
+    closeDeleteUserModal();
+    showToast(`⏳ Odstraňuji účet ${targetUser}...`);
+    
+    try {
+        const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/delete-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ 
+                admin_username: sessionCredentials.username, 
+                admin_password: sessionCredentials.password,
+                target_user: targetUser
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        
+        showToast("🗑️ Účet trvale odstraněn.");
+        
+        // 🚀 OMEGA OPTIMISTIC UI: Okamžitě vymažeme řádek z DOMu
+        const row = document.getElementById(`user-row-${targetUser}`);
+        if (row) row.remove();
+        
+    } catch (error) { showToast("❌ Nelze odstranit: " + error.message); }
+};
 // --- 🛡️ OMEGA LOCK & HEARTBEAT ENGINE ---
 let heartbeatTimer = null;
 
 window.claimDatabaseLock = async function() {
     try {
         const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/heartbeat", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST", 
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Omega-Device-Id": getDeviceIdentity()
+            },
             body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password })
         });
         const data = await response.json();
@@ -1386,7 +1586,11 @@ window.releaseDatabaseLock = async function() {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     try {
         await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/release-lock", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST", 
+            headers: { 
+                "Content-Type": "application/json",
+                "X-Omega-Device-Id": getDeviceIdentity()
+            },
             body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password })
         });
     } catch (e) {}
@@ -1734,67 +1938,113 @@ const passwordInputNode = document.getElementById('admin-password-input');
 const authErrorMsgNode = document.getElementById('auth-error-msg');
 
 if (btnAuthSubmit && authModalNode) {
-    btnAuthSubmit.addEventListener('click', () => {
+    btnAuthSubmit.addEventListener('click', async () => {
         const user = userNode ? userNode.value.trim() : '';
         const pwd = passwordInputNode ? passwordInputNode.value.trim() : '';
 
-        if (!pwd) {
+        // 1. Lokální validace formuláře
+        if (!pwd || !user) {
             if (authErrorMsgNode) {
-                authErrorMsgNode.innerText = "Zadejte platné heslo.";
+                authErrorMsgNode.innerText = "Zadejte platné přihlašovací údaje.";
                 authErrorMsgNode.style.display = "block";
             }
             return;
         }
 
-        // 1. Uložíme identitu do paměti relace pro Worker
-        sessionCredentials = { username: user, password: pwd };
-        sessionPassword = pwd; // Fallback pro bezpečný chod starších funkcí
+        // 2. Lokální validace Turnstile tokenu (Zamezí bypassu popupu)
+        const tsInput = document.querySelector('#omega-auth-ts [name="cf-turnstile-response"]');
+        const tsToken = tsInput ? tsInput.value : null;
 
-        // 2. Skrytí klientské aplikace
-        const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main', '#toast', '#omega-print-layer'];
-        appElements.forEach(selector => {
-            document.querySelectorAll(selector).forEach(el => el.style.setProperty('display', 'none', 'important'));
-        });
-        
-        document.body.style.setProperty('overflow-y', 'auto', 'important');
-        document.body.style.setProperty('padding-bottom', '0', 'important');
-        
-        // 3. Zavření modálu a spuštění Admin UI
-        authModalNode.style.display = 'none';
-        const adminPortal = document.getElementById('omega-admin-portal');
-        if (adminPortal) adminPortal.style.display = 'block';
-        
-        // 4. Očištění URL
-        const currentTheme = localStorage.getItem('omega_theme') || 'default';
-        history.pushState({ page: 'admin_active' }, "Administrace OMEGA", window.location.pathname + "?theme=" + currentTheme);
-        
-        // 5. Inicializace admin enginu
-        setTimeout(() => {
-            if (typeof window.initAuthorAutocomplete === 'function') window.initAuthorAutocomplete();
-            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb(); 
-            if (typeof window.trackOmegaEvent === 'function') window.trackOmegaEvent('Admin_Portal_Accessed_Secure', { user: user });
-            
-            // 🚀 OMEGA FIX: Odjištění Master Admin tlačítka 
-            if (sessionCredentials.username.toLowerCase() === 'vedouci') {
-                const masterBtn = document.getElementById('btn-master-admin');
-                if (masterBtn) masterBtn.style.display = 'block';
+        if (!tsToken) {
+            if (authErrorMsgNode) {
+                authErrorMsgNode.innerText = "Vyčkejte na ověření ochrany proti botům.";
+                authErrorMsgNode.style.display = "block";
+            }
+            return;
+        }
+
+        // UX: Zneaktivnění tlačítka během komunikace
+        btnAuthSubmit.disabled = true;
+        btnAuthSubmit.innerText = "Ověřuji...";
+        authErrorMsgNode.style.display = "none";
+
+        try {
+            // 3. ABSOLUTNÍ VERIFIKACE: Dotaz na CFW před vpuštěním do UI
+            const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/heartbeat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+                body: JSON.stringify({ username: user, password: pwd })
+            });
+
+            if (response.status === 401 || response.status === 429) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Neplatné přihlašovací údaje.");
             }
 
-            // 🛡️ OMEGA FIX: Pokus o získání databáze (Heartbeat) a start stopek
-            if (typeof window.startHeartbeat === 'function') window.startHeartbeat();
-            if (typeof window.startIdleTimer === 'function') window.startIdleTimer();
+            if (response.status === 423) {
+                 const errData = await response.json();
+                 document.getElementById('lock-active-user').innerText = errData.locked_by;
+                 document.getElementById('omega-lock-modal').style.display = 'flex';
+                 authModalNode.style.display = 'none';
+                 return; // Nepouštíme ho do UI, někdo tam pracuje
+            }
 
-        }, 50);
+            if (!response.ok) throw new Error("Chyba při komunikaci se serverem.");
+
+            // 4. PŘÍSTUP UDĚLEN: Inicializace UI
+            sessionCredentials = { username: user, password: pwd };
+            sessionPassword = pwd;
+
+            const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main', '#toast', '#omega-print-layer'];
+            appElements.forEach(selector => {
+                document.querySelectorAll(selector).forEach(el => el.style.setProperty('display', 'none', 'important'));
+            });
+            
+            document.body.style.setProperty('overflow-y', 'auto', 'important');
+            document.body.style.setProperty('padding-bottom', '0', 'important');
+            
+            authModalNode.style.display = 'none';
+            const adminPortal = document.getElementById('omega-admin-portal');
+            if (adminPortal) adminPortal.style.display = 'block';
+            
+            const currentTheme = localStorage.getItem('omega_theme') || 'default';
+            history.pushState({ page: 'admin_active' }, "Administrace OMEGA", window.location.pathname + "?theme=" + currentTheme);
+            
+            setTimeout(() => {
+                if (typeof window.initAuthorAutocomplete === 'function') window.initAuthorAutocomplete();
+                if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb(); 
+                if (typeof window.trackOmegaEvent === 'function') window.trackOmegaEvent('Admin_Portal_Accessed_Secure', { user: user });
+                
+                const activeUser = sessionCredentials.username.toLowerCase();
+                if (activeUser === 'vedouci' || activeUser === 'omega') {
+                    const masterBtn = document.getElementById('btn-master-admin');
+                    if (masterBtn) masterBtn.style.display = 'block';
+                }
+
+                if (typeof window.startHeartbeat === 'function') window.startHeartbeat(); // Spustí smyčku stopek
+                if (typeof window.startIdleTimer === 'function') window.startIdleTimer();
+            }, 50);
+
+        } catch (err) {
+            authErrorMsgNode.innerText = err.message;
+            authErrorMsgNode.style.display = "block";
+            
+            // Reset Turnstile po chybě
+            if (typeof turnstile !== 'undefined') {
+                try { turnstile.reset('#omega-auth-ts'); } catch(e) {}
+            }
+        } finally {
+            btnAuthSubmit.disabled = false;
+            btnAuthSubmit.innerText = "Vstoupit";
+        }
     });
 
-    // UX Kinetika: Enter v poli pro heslo odpaluje Submit
     if (passwordInputNode) {
         passwordInputNode.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') btnAuthSubmit.click();
         });
     }
 
-    // Tlačítko Zrušit
     if (btnAuthCancel) {
         btnAuthCancel.addEventListener('click', () => {
             authModalNode.style.display = 'none';
@@ -1804,6 +2054,7 @@ if (btnAuthSubmit && authModalNode) {
         });
     }
 }
+
 // --- ⌨️ KINETIKA KLÁVESNICE ---
 ['admin-dilo', 'admin-autor', 'admin-index'].forEach(id => {
     const el = document.getElementById(id);
@@ -2379,7 +2630,11 @@ window.closeAdminConfirmationModal = function() {
                 if (errorMsg) errorMsg.style.display = 'none';
                 
                 authModal.style.display = 'flex';
-                setTimeout(() => { if (pwdInput) pwdInput.focus(); }, 100);
+                // 🚀 OMEGA FIX: Focus na uživatelské jméno
+                setTimeout(() => { 
+                    const userInput = document.getElementById('admin-username-input');
+                    if (userInput) userInput.focus(); 
+                }, 100);
             }
         }
 
