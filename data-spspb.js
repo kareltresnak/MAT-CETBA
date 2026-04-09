@@ -14,7 +14,7 @@ window.OMEGA_CONFIG = {
             <div class="styled-input" id="year-wrapper" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); cursor: text;" onclick="document.getElementById('student-year').focus()">
                 <span>Školní rok: 20</span>
                 <input type="text" id="student-year" maxlength="2" placeholder="25" autocomplete="off" style="width: 30px; border: none; background: transparent; color: var(--text-main); font-weight: 900; font-family: inherit; font-size: 1.15em; outline: none; text-align: center; border-bottom: 2px solid var(--accent-primary); padding: 0 0 2px 0; border-radius: 0; box-shadow: none; -webkit-appearance: none; appearance: none;">
-                <span> / 20</span><span id="student-year-next" style="color: var(--text-main); font-weight: bold;">26</span>
+                <span> / </span><span id="student-year-next" style="color: var(--text-main); font-weight: bold;">2026</span>
             </div>
         </div>
     `,

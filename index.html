@@ -114,7 +114,10 @@
                 </details>
 
                 <div class="section-header">Stav výběru</div>
-                <div id="stat-total-container" class="stat-box">Celkem: <span id="stat-total" class="val">0</span> / 20</div>
+                <div id="stat-total-container" class="stat-box" style="margin-bottom: 0.5rem;">Celkem: <span id="stat-total" class="val">0</span> / 20</div>
+                <button id="btn-filter-mylist" class="filter-btn" style="margin-bottom: 1.5rem; justify-content: center; font-weight: bold; border: 1px dashed var(--accent-primary, var(--accent-rust)); color: var(--text-main); transition: 0.2s;">
+                    ⭐ Filtrovat můj výběr
+                </button>
                 <div id="school-rules"></div>
                 <div id="validation-errors" style="display: none; color: var(--accent-red); font-size: 0.85rem; font-weight: 700; margin-bottom: 1rem; padding: 0.85rem; background: rgba(218, 33, 40, 0.08); border-left: 4px solid var(--accent-red); line-height: 1.5; letter-spacing: 0.2px;"></div>
                 
@@ -152,9 +155,6 @@
                     <button type="button" class="filter-btn" data-val="drama">Drama <span class="badge">0/2</span></button>
                 </div>
 
-                <div class="section-header">Můj seznam</div>
-                <div id="my-list" class="my-list">Zatím prázdno...</div>
-                
                 <div class="app-version" id="app-build-info" style="cursor: default; user-select: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; text-transform: uppercase; letter-spacing: 1px;">
                     <div style="font-weight: bold;">Selekce četby // <span id="app-version-val">...</span></div>
                     <div style="font-size: 0.75rem; opacity: 0.6; letter-spacing: 0.5px;" id="audit-trail-date"></div>
@@ -495,9 +495,10 @@
             
             <h3 style="margin-top: 0; color: var(--text-main); font-size: 1.2rem; font-weight: bold;">🔐 Správa databáze</h3>
             <div id="auth-error-msg" style="display: none; color: var(--accent-red, #ff4d4d); font-size: 0.8rem; margin-bottom: 10px; font-weight: bold;"></div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px; line-height: 1.4;">Zadejte heslo pro úpravu seznamu četby.</p>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; line-height: 1.4;">Ověřte svou identitu pro přístup do administrace.</p>
             
-            <input type="password" id="admin-password-input" class="styled-input" placeholder="Heslo..." style="margin-bottom: 20px; text-align: center; letter-spacing: 4px; width: 100%; box-sizing: border-box;">
+            <input type="text" id="admin-username-input" class="styled-input" placeholder="Přihlašovací jméno..." autocomplete="username" style="margin-bottom: 10px; width: 100%; box-sizing: border-box; text-align: center;">
+            <input type="password" id="admin-password-input" class="styled-input" placeholder="Heslo..." autocomplete="current-password" style="margin-bottom: 20px; text-align: center; letter-spacing: 4px; width: 100%; box-sizing: border-box;">
             
             <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 20px; width: 100%;">
                 <span id="ts-status-auth" style="font-size: 0.75rem; color: var(--accent-primary, #e67e22); text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold; transition: color 0.3s ease;">
@@ -566,6 +567,41 @@
                 <button type="button" class="btn" onclick="closeTeleportModal()" style="background: transparent; border: 1px solid var(--border); color: var(--text-main);">Zrušit</button>
                 <button type="button" class="btn" onclick="confirmTeleport()" style="background: var(--accent-primary); color: white; border: none; font-weight: bold;">Provést přesun</button>
             </div>
+        </div>
+    </div>
+    <div id="omega-revert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-surface); border: 1px solid var(--accent-red); border-radius: 8px; padding: 25px; width: 90%; max-width: 450px; box-shadow: 0 15px 40px rgba(218, 33, 40, 0.2); color: var(--text-main);">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--accent-red); display: flex; align-items: center; gap: 10px;">
+                ⚠️ Vrácení změn (Revert)
+            </h3>
+            <p style="margin-bottom: 15px; font-size: 0.95em; line-height: 1.5; color: var(--text-muted);">
+                Chystáte se přepsat aktuální produkční databázi stavem z commitu: <br>
+                <strong id="revert-commit-hash" style="color: var(--text-main); font-family: monospace; background: var(--bg-base); padding: 2px 6px; border-radius: 4px;"></strong>
+            </p>
+            <p style="margin-bottom: 20px; font-size: 0.85em; color: var(--accent-red); font-weight: bold;">
+                Tato akce okamžitě přepíše data všem studentům. Jste si naprosto jisti?
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="document.getElementById('omega-revert-modal').style.display='none'" style="background: transparent; border: 1px solid var(--border); color: var(--text-main);">Zrušit</button>
+                <button type="button" class="btn" onclick="executeRevert()" style="background: var(--accent-red); color: white; border: none; font-weight: bold;">Ano, přepsat databázi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="omega-lock-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(8px); z-index: 99999; align-items: center; justify-content: center; flex-direction: column; text-align: center;">
+        <div style="background: var(--bg-surface); border: 2px solid var(--accent-primary, #e65100); border-radius: 8px; padding: 40px; width: 90%; max-width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.8); color: var(--text-main);">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🚧</div>
+            <h2 style="margin-top: 0; margin-bottom: 15px; color: var(--accent-primary, #e65100); font-weight: 800; text-transform: uppercase;">Databáze je uzamčena</h2>
+            <p style="margin-bottom: 10px; font-size: 1.1em; color: var(--text-muted); line-height: 1.5;">
+                Momentálně provádí úpravy:<br>
+                <strong id="lock-active-user" style="color: var(--text-main); font-size: 1.3em; background: var(--bg-base); padding: 4px 12px; border-radius: 6px; display: inline-block; margin-top: 10px; border: 1px solid var(--border);">Neznámý uživatel</strong>
+            </p>
+            <p style="margin-bottom: 30px; font-size: 0.85em; color: var(--accent-primary, #e65100); font-weight: bold;">
+                Abyste si navzájem nepřepsali data, administrace je pro vás dočasně zablokována. Zkuste to za chvíli.
+            </p>
+            <button class="btn" onclick="window.location.reload()" style="background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); font-weight: bold; width: 100%; padding: 12px;">
+                🔙 Rozumím (Zpět do aplikace)
+            </button>
         </div>
     </div>
     <div id="omega-print-layer"></div>

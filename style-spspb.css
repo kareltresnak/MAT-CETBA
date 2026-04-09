@@ -38,7 +38,7 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-primary-light); }
 
 *:focus-visible { outline: none !important; box-shadow: var(--focus-ring) !important; border-radius: var(--radius); z-index: 10; position: relative; }
 
@@ -69,13 +69,13 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 .input-row { display: flex; gap: 0.5rem; }
 .styled-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 0.75rem; border-radius: var(--radius); font-family: inherit; font-size: 0.9rem; }
 .styled-input:focus { border-color: var(--accent-primary-light); outline: none; }
-.styled-input::placeholder { color: var(--text-muted); opacity: 0.5; }
+.styled-input::placeholder { color: var(--text-muted); opacity: 0.8; }
 
 .privacy-shield { display: flex; gap: 0.6rem; background: rgba(118, 203, 161, 0.05); border: 1px solid rgba(118, 203, 161, 0.2); padding: 0.75rem; border-radius: var(--radius); margin-top: 0.75rem; align-items: flex-start; }
 .shield-icon { font-size: 1rem; line-height: 1; }
-.shield-text { font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; }
+.shield-text { font-size: 0.7rem; color: var(--text-main); opacity: 0.85; line-height: 1.5; }
 .shield-text strong { color: var(--accent-primary-light); }
-.shield-text a { color: var(--text-muted); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 2px; }
+.shield-text a { color: var(--text-muted); text-decoration: underline; text-decoration-color: var(--accent-primary-light); text-underline-offset: 2px; }
 .shield-text a:hover { color: var(--text-main); text-decoration-color: var(--accent-primary-light); }
 
 .stat-box { padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-base); margin-bottom: 1rem; }
