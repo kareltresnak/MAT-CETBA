@@ -260,14 +260,31 @@
     </div>
     <div id="omega-admin-portal" style="display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; background: transparent; height: 100vh; overflow-y: auto; box-sizing: border-box; padding-bottom: 5rem;">
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 12px;">
-            <button onclick="attemptAdminExit()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s;" onmouseover="this.style.color='var(--text-main)'; this.style.borderColor='var(--text-main)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
-                🔙 Opustit administraci a vrátit se do aplikace
-            </button>
-            <div id="omega-idle-timer-small" style="display: none; align-items: center; gap: 8px; font-family: monospace; font-size: 0.9rem; color: var(--accent-primary); background: rgba(230, 126, 34, 0.05); border: 1px solid rgba(230, 126, 34, 0.2); padding: 6px 12px; border-radius: 6px; font-variant-numeric: tabular-nums;">
-                <span>⏳ Zámek:</span>
-                <strong id="idle-time-val-small">04:50</strong>
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: 2rem; gap: 12px;">
+            
+            <div style="justify-self: start;">
+                <button onclick="attemptAdminExit()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s;" onmouseover="this.style.color='var(--text-main)'; this.style.borderColor='var(--text-main)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
+                    🔙 Opustit administraci a vrátit se do aplikace
+                </button>
             </div>
+
+            <div style="justify-self: center;">
+                <div id="omega-idle-timer-small" style="display: none; align-items: center; gap: 8px; font-family: monospace; font-size: 0.9rem; color: var(--accent-primary); background: rgba(230, 126, 34, 0.05); border: 1px solid rgba(230, 126, 34, 0.2); padding: 6px 12px; border-radius: 6px; font-variant-numeric: tabular-nums;">
+                    <span>⏳ Zámek:</span>
+                    <strong id="idle-time-val-small">04:50</strong>
+                </div>
+            </div>
+
+            <div style="justify-self: end;">
+                <button type="button" class="theme-switch" aria-label="Přepnout motiv">
+                    <div class="theme-switch-track">
+                        <span class="icon sun">☀️</span>
+                        <span class="icon moon">🌙</span>
+                        <div class="theme-switch-thumb"></div>
+                    </div>
+                </button>
+            </div>
+            
         </div>
 
         <h2 style="color: var(--accent-primary); margin-bottom: 0.5rem; font-size: 1.8rem;">📚 Úprava maturitního seznamu</h2>

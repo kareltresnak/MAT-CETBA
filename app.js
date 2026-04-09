@@ -85,7 +85,7 @@ if (currentRozcestnik === 'spspb') {
     }
 }
 // 2. State Machine pro Dark/Light Mode
-const themeToggleBtn = document.getElementById('theme-toggle');
+const themeToggleBtns = document.querySelectorAll('.theme-switch');
 const themeIcon = document.getElementById('theme-icon');
 
 function applyColorTheme(theme) {
@@ -100,17 +100,15 @@ const initialTheme = savedColorTheme || (systemPrefersLight ? 'light' : 'dark');
 applyColorTheme(initialTheme);
 
 // Event Listener na tlačítko
-if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
+themeToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
         const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light'; // 🚀 Definice nového stavu
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
         
         applyColorTheme(newTheme);
-
-        // 🎯 TELEMETRIE: Změna motivu
         trackOmegaEvent('Theme_Switched', { mode: newTheme });
     });
-}
+});
 // ==========================================
 
 
@@ -2353,7 +2351,7 @@ window.openAdminPdfEditor = function() {
                 <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: center; vertical-align: middle; font-size: 9.5pt; font-weight: bold;">${counter}.</td>
                 <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; vertical-align: middle; font-size: 9.5pt; font-weight: bold;">${sanitize(book.autor)}</td>
                 <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; vertical-align: middle; font-size: 9.5pt; font-weight: bold;">${sanitize(book.dilo)}</td>
-                <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: center; vertical-align: middle; font-size: 9.5pt;">${book.druh}</td>
+                <td style="border-right: 0.5pt solid black; border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: left; vertical-align: middle; font-size: 9.5pt;">${book.druh}</td>
                 <td style="border-bottom: ${bottomBorder}; padding: 1.5px 3px; text-align: left; vertical-align: middle; font-size: 9.5pt;">${printObdobi[book.obdobi] || book.obdobi}</td>
             </tr>
         `;

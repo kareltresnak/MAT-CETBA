@@ -18,14 +18,21 @@
     --radius: 6px;
 }
 /* ==========================================
-   KINEMATIKA (Plynulý přechod motivů - Zpomaleno)
+   KINEMATIKA (Dokonale synchronizovaný přechod)
    ========================================== */
-body, .sidebar, .content, .table-container, #search-box, .accordion, .stat-box, th, td, .styled-input {
-    transition: background-color 0.6s ease-in-out, 
-                color 0.6s ease-in-out, 
-                border-color 0.6s ease-in-out;
+*, *::before, *::after { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    /* Tímto sjednotíme VŠECHNY barvy a stíny v aplikaci na přesných 0.3s */
+    transition: background-color 0.3s ease-in-out,
+                background 0.3s ease-in-out,
+                color 0.3s ease-in-out,
+                border-color 0.3s ease-in-out,
+                box-shadow 0.3s ease-in-out,
+                transform 0.3s ease-in-out;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
+
 body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); color: var(--text-main); height: 100vh; overflow: hidden; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -40,7 +47,7 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 .sidebar-scroll { padding: 2rem; overflow-y: auto; flex: 1; min-height: 0; height: 100%; }
 .content { grid-area: main; display: flex; flex-direction: column; padding: 2rem; gap: 1.5rem; min-width: 0; min-height: 0; max-height: 100vh; }
 
-.btn-back { display: inline-flex; align-items: center; color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.5rem; transition: 0.2s; outline: none; }
+.btn-back { display: inline-flex; align-items: center; color: var(--text-muted); text-decoration: none; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1.5rem; outline: none; }
 .btn-back:hover { color: var(--accent-primary-light); transform: translateX(-5px); }
 .btn-back:focus-visible { color: var(--accent-primary-light); border-radius: 4px; box-shadow: var(--focus-ring); }
 
@@ -48,8 +55,8 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 .brand-dim { color: var(--accent-primary-light); }
 .section-header { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 1.5rem 0 0.75rem 0; }
 
-.accordion { background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; transition: 0.3s; }
-.accordion-summary { padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); cursor: pointer; list-style: none; display: block; transition: 0.2s; text-transform: uppercase; letter-spacing: 0.05em; }
+.accordion { background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; overflow: hidden; }
+.accordion-summary { padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); cursor: pointer; list-style: none; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
 .accordion-summary::-webkit-details-marker { display: none; }
 .accordion-summary:hover { color: var(--text-main); background: var(--bg-surface-hover); }
 .accordion-content { padding: 1rem; border-top: 1px solid var(--border); }
@@ -60,7 +67,7 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 
 .input-group { display: flex; flex-direction: column; gap: 0.5rem; }
 .input-row { display: flex; gap: 0.5rem; }
-.styled-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 0.75rem; border-radius: var(--radius); font-family: inherit; font-size: 0.9rem; transition: border-color 0.2s; }
+.styled-input { width: 100%; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 0.75rem; border-radius: var(--radius); font-family: inherit; font-size: 0.9rem; }
 .styled-input:focus { border-color: var(--accent-primary-light); outline: none; }
 .styled-input::placeholder { color: var(--text-muted); opacity: 0.5; }
 
@@ -68,14 +75,14 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 .shield-icon { font-size: 1rem; line-height: 1; }
 .shield-text { font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; }
 .shield-text strong { color: var(--accent-primary-light); }
-.shield-text a { color: var(--text-muted); text-decoration: underline; text-decoration-color: var(--border); transition: 0.2s; text-underline-offset: 2px; }
+.shield-text a { color: var(--text-muted); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 2px; }
 .shield-text a:hover { color: var(--text-main); text-decoration-color: var(--accent-primary-light); }
 
-.stat-box { padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-base); transition: 0.3s; margin-bottom: 1rem; }
+.stat-box { padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-base); margin-bottom: 1rem; }
 .stat-box .val { font-weight: 800; font-size: 1.3rem; }
 
 .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
-.btn, button { font-family: inherit; cursor: pointer; border-radius: var(--radius); border: 1px solid transparent; transition: 0.2s; font-weight: 600; padding: 0.7rem; }
+.btn, button { font-family: inherit; cursor: pointer; border-radius: var(--radius); border: 1px solid transparent; font-weight: 600; padding: 0.7rem; }
 
 .success-btn { grid-column: span 2; border-color: rgba(118, 203, 161, 0.4); color: var(--accent-primary-light); background: transparent; }
 .success-btn:hover:not(:disabled) { background: var(--accent-primary-light); color: var(--bg-base); border-color: var(--accent-primary-light); }
@@ -89,16 +96,56 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 .danger-btn { background: transparent; color: var(--accent-red); border-color: rgba(218, 33, 40, 0.2); }
 .danger-btn:hover { background: rgba(218, 33, 40, 0.15); }
 
-.pwa-install-btn { width: 100%; background: var(--bg-active); border: 1px solid rgba(118, 203, 161, 0.3); color: var(--accent-primary-light); padding: 0.75rem; border-radius: var(--radius); font-weight: 700; cursor: pointer; transition: 0.2s; margin-top: 0.75rem; text-transform: uppercase; font-size: 0.8rem; }
+.pwa-install-btn { width: 100%; background: var(--bg-active); border: 1px solid rgba(118, 203, 161, 0.3); color: var(--accent-primary-light); padding: 0.75rem; border-radius: var(--radius); font-weight: 700; cursor: pointer; margin-top: 0.75rem; text-transform: uppercase; font-size: 0.8rem; }
 .pwa-install-btn:hover { background: var(--accent-primary-light); color: var(--bg-base); }
 
-.filter-btn { background: transparent; color: var(--text-muted); width: 100%; display: flex; justify-content: space-between; padding: 0.75rem 1rem; margin-bottom: 0.4rem; border: 1px solid transparent; }
-.filter-btn.active { color: var(--accent-primary-light); background: var(--bg-active); border-color: rgba(118, 203, 161, 0.3); font-weight: 600; }
-.filter-btn:hover { background: var(--bg-surface-hover); color: var(--text-main); }
+/* 🚀 OMEGA FIX: Stabilní geometrie a ohraničení pro filtry a odznaky */
+.filter-btn { 
+    background: var(--bg-surface); 
+    color: var(--text-muted); 
+    width: 100%; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 0.75rem 1rem; 
+    margin-bottom: 0.4rem; 
+    border: 1px solid var(--border); /* Tvrdý rámeček pro Dark Mode */
+    border-radius: var(--radius);
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s !important; 
+}
+.filter-btn.active { 
+    background: var(--bg-active); 
+    /* Pozor: Zde si doplň svou proměnnou (např. var(--accent-rust) nebo var(--accent-primary)) */
+    border-color: var(--border); 
+    font-weight: 600; 
+}
+.filter-btn:hover { 
+    background: var(--bg-surface-hover); 
+    color: var(--text-main); 
+}
 
-.badge { font-family: monospace; font-size: 0.9rem; }
-.badge.ok { color: var(--accent-primary-light); font-weight: bold; }
-.badge.fail { color: var(--accent-red); }
+/* Sjednocená geometrie odznaku - tvar se už nikdy nezmění, jen barva */
+.badge { 
+    font-family: monospace; 
+    font-size: 0.8rem; 
+    font-weight: 700; 
+    padding: 2px 8px; 
+    border-radius: 12px; 
+    background: var(--bg-base); 
+    border: 1px solid var(--border); 
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s !important; 
+}
+/* Zde si opět uprav proměnnou pro barvu (green/primary/rust) dle daného CSS souboru */
+.badge.ok { 
+    background: var(--accent-green, var(--accent-primary)); 
+    color: #ffffff; 
+    border-color: transparent; 
+}
+.badge.fail { 
+    background: transparent; 
+    color: var(--accent-red); 
+    border-color: rgba(218, 33, 40, 0.3); 
+}
 
 .my-list { font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); }
 .my-list .selected-item { background: var(--bg-base); padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--accent-primary-light); }
@@ -126,8 +173,14 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 table { width: 100%; border-collapse: collapse; }
 th { position: sticky; top: 0; background: var(--bg-surface); padding: 1rem; text-align: left; font-size: 0.75rem; color: var(--text-muted); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; z-index: 5; }
 td { padding: 1rem; border-bottom: 1px solid var(--border); color: var(--text-muted); }
-tr:hover { background: var(--bg-surface-hover); cursor: pointer; }
-tr.selected { background: rgba(118, 203, 161, 0.08); }
+
+/* 🚀 OMEGA FIX: Pevné ukotvení barev pro Dark Mode (žádná transparentnost) */
+#data-table tbody tr { transition: background-color 0.3s ease-in-out !important; }
+#data-table tbody tr:nth-child(odd) { background-color: var(--bg-surface); }
+#data-table tbody tr:nth-child(even) { background-color: #111111; }
+#data-table tbody tr:hover { background-color: var(--bg-surface-hover); cursor: pointer; }
+
+tr.selected { background-color: rgba(118, 203, 161, 0.08) !important; }
 tr.selected td:nth-child(2) { color: var(--accent-primary-light); font-weight: bold; }
 
 .fab-btn { position: fixed; bottom: 2rem; right: 2rem; width: 3.5rem; height: 3.5rem; border-radius: 50%; background: var(--bg-surface); border: 2px solid var(--accent-primary); color: var(--accent-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 100; opacity: 0; pointer-events: none; transform: translateY(20px); transition: 0.3s; font-size: 1.5rem; font-weight: bold; }
@@ -232,7 +285,31 @@ tr.selected td:nth-child(2) { color: var(--accent-primary-light); font-weight: b
     #data-table tbody td { padding: 0.75rem 0.5rem; }
     #data-table thead th { padding: 0.75rem 0.5rem; font-size: 0.65rem; }
 }
+/* ==========================================
+   🚀 OMEGA FIX: Kinetická stabilizace Sidebaru (Zrušení průhlednosti)
+   ========================================== */
 
+/* 1. Tlačítka sedí na sidebaru, takže místo průhlednosti dostanou jeho exaktní barvu */
+.filter-btn, 
+.warning-btn, 
+.danger-btn, 
+.share-btn, 
+.success-btn {
+    background-color: var(--bg-surface);
+}
+
+/* 2. Hlavička akordeonu sedí na tmavším pozadí akordeonu */
+.accordion-summary {
+    background-color: var(--bg-base);
+}
+
+/* 3. Zajištění, že se i hover efekty a vybrané položky přelévají správně */
+.filter-btn, .btn, .my-list .selected-item, .accordion-summary {
+    transition: background-color 0.3s ease-in-out, 
+                background 0.3s ease-in-out, 
+                color 0.3s ease-in-out, 
+                border-color 0.3s ease-in-out !important;
+}
 /* ==========================================
    LIGHT MODE: SPŠ BRANDING (Forest & Mint Synergy)
    ========================================== */
@@ -463,6 +540,10 @@ tr.selected td:nth-child(2) { color: var(--accent-primary-light); font-weight: b
     border-bottom: none; 
     letter-spacing: 0.08em;
 }
+/* 🚀 OMEGA FIX: Pevné ukotvení barev pro Light Mode */
+:root[data-theme="light"] #data-table tbody tr:nth-child(odd) {
+    background-color: var(--bg-surface);
+}
 :root[data-theme="light"] #data-table tbody tr:nth-child(even) {
     background-color: #f8fafc;
 }
@@ -471,16 +552,8 @@ tr.selected td:nth-child(2) { color: var(--accent-primary-light); font-weight: b
 }
 /* 🎯 NOVINKA: Aktivní řádek v tabulce svítí mátově */
 :root[data-theme="light"] #data-table tbody tr.selected {
-    background-color: var(--bg-active);
+    background-color: var(--bg-active) !important;
     box-shadow: inset 4px 0 0 var(--accent-primary-light); /* Levá Mint linka! */
-}
-:root[data-theme="light"] #data-table tbody tr.selected td:nth-child(2) {
-    color: var(--accent-primary);
-    font-weight: 700;
-}
-:root[data-theme="light"] .my-list .selected-item {
-    border-left: 3px solid var(--accent-primary-light); /* Mint linka */
-    background: #f8fafc;
 }
 
 /* 🛡️ OPTICKÁ IZOLACE QR KÓDU */
@@ -667,7 +740,7 @@ mark {
 }
 
 /* 🚀 OMEGA ADMIN: Unifikace Selectů a Dropdownů */
-.styled-input {
+select.styled-input {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -675,11 +748,6 @@ mark {
     background-repeat: no-repeat;
     background-position: right 1rem center;
     background-size: 1em;
-}
-
-/* Skrytí šipky, pokud se nejedná o select (např. běžný text input) */
-input.styled-input {
-    background-image: none;
 }
 
 /* Styl pro našeptávač autorů (aby ladil s tématem) */
