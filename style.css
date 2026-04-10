@@ -130,7 +130,7 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-base); 
 }
 /* Zde si opět uprav proměnnou pro barvu (green/primary/rust) dle daného CSS souboru */
 .badge.ok { 
-    background: var(--accent-green, var(--accent-primary)); 
+    background: var(--accent-rust); 
     color: #ffffff; 
     border-color: transparent; 
 }
