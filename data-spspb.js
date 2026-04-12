@@ -3,7 +3,7 @@
 // =====================================================================
 
 window.OMEGA_CONFIG = {
-    LAST_UPDATE: "10. 4. 2026",
+    LAST_UPDATE: "29. 3. 2026",
     REQUIREMENTS: { do18: 2, "19": 3, svet20: 4, cz20: 5, lyrika: 2, epika: 2, drama: 2 },
     
     FORM_HTML: `
@@ -150,447 +150,454 @@ window.OMEGA_CONFIG = {
             },
             {
                     "id": 2,
+                    "dilo": "Romeo a Julie",
+                    "autor": "William Shakespeare",
+                    "druh": "drama",
+                    "obdobi": "do18"
+            },
+            {
+                    "id": 3,
                     "dilo": "Kytice",
                     "autor": "Karel Jaromír Erben",
                     "druh": "lyrika",
                     "obdobi": "19"
             },
             {
-                    "id": 3,
+                    "id": 4,
                     "dilo": "Máj",
                     "autor": "Karel Hynek Mácha",
                     "druh": "lyrika",
                     "obdobi": "19"
             },
             {
-                    "id": 4,
+                    "id": 5,
                     "dilo": "Povídky malostranské",
                     "autor": "Jan Neruda",
                     "druh": "epika",
                     "obdobi": "19"
             },
             {
-                    "id": 5,
+                    "id": 6,
                     "dilo": "Oliver Twist",
                     "autor": "Charles Dickens",
                     "druh": "epika",
                     "obdobi": "19"
             },
             {
-                    "id": 6,
+                    "id": 7,
                     "dilo": "Slezské písně",
                     "autor": "Petr Bezruč",
                     "druh": "lyrika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 7,
+                    "id": 8,
                     "dilo": "Krysař",
                     "autor": "Viktor Dyk",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 8,
+                    "id": 9,
                     "dilo": "R. U. R.",
                     "autor": "Karel Čapek",
                     "druh": "drama",
                     "obdobi": "cz20"
             },
             {
-                    "id": 9,
+                    "id": 10,
                     "dilo": "Osudy dobrého vojáka Švejka",
                     "autor": "Jaroslav Hašek",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 10,
+                    "id": 11,
                     "dilo": "Proměna",
                     "autor": "Franz Kafka",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 11,
+                    "id": 12,
                     "dilo": "Na západní frontě klid",
                     "autor": "Erich Maria Remarque",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 12,
+                    "id": 13,
                     "dilo": "Stařec a moře",
                     "autor": "Ernest Hemingway",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 13,
+                    "id": 14,
                     "dilo": "Spalovač mrtvol",
                     "autor": "Ladislav Fuks",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 14,
+                    "id": 15,
                     "dilo": "Vyšetřování ztráty třídní knihy",
                     "autor": "Smoljak, Svěrák",
                     "druh": "drama",
                     "obdobi": "cz20"
             },
             {
-                    "id": 15,
+                    "id": 16,
                     "dilo": "Píseň o Viktorce",
                     "autor": "Jaroslav Seifert",
                     "druh": "lyrika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 16,
+                    "id": 17,
                     "dilo": "Smrt je mým řemeslem",
                     "autor": "Robert Merle",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 17,
+                    "id": 18,
                     "dilo": "Farma zvířat",
                     "autor": "George Orwell",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 18,
+                    "id": 19,
                     "dilo": "Ostře sledované vlaky",
                     "autor": "Bohumil Hrabal",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 19,
+                    "id": 20,
                     "dilo": "Báječná léta pod psa",
                     "autor": "Michal Viewegh",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 20,
+                    "id": 21,
                     "dilo": "Král Oidipus",
                     "autor": "Sofokles",
                     "druh": "drama",
                     "obdobi": "do18"
             },
             {
-                    "id": 21,
+                    "id": 22,
                     "dilo": "Bible pro děti",
                     "autor": "Hadaway, Atcheson",
                     "druh": "epika",
                     "obdobi": "do18"
             },
             {
-                    "id": 22,
+                    "id": 23,
                     "dilo": "Lakomec",
                     "autor": "Moliére",
                     "druh": "drama",
                     "obdobi": "do18"
             },
             {
-                    "id": 23,
+                    "id": 24,
                     "dilo": "Revizor",
                     "autor": "Nikolaj V. Gogol",
                     "druh": "drama",
                     "obdobi": "19"
             },
             {
-                    "id": 24,
+                    "id": 25,
                     "dilo": "Tyrolské elegie",
                     "autor": "Karel Havlíček Borovský",
                     "druh": "lyrika",
                     "obdobi": "19"
             },
             {
-                    "id": 25,
+                    "id": 26,
                     "dilo": "Jáma a kyvadlo",
                     "autor": "Edgar Allan Poe",
                     "druh": "epika",
                     "obdobi": "19"
             },
             {
-                    "id": 26,
+                    "id": 27,
                     "dilo": "O myších a lidech",
                     "autor": "John Steinbeck",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 27,
+                    "id": 28,
                     "dilo": "Rozmarné léto",
                     "autor": "Vladislav Vančura",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 28,
+                    "id": 29,
                     "dilo": "Válka s mloky",
                     "autor": "Karel Čapek",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 29,
+                    "id": 30,
                     "dilo": "451 stupňů Fahrenheita",
                     "autor": "Ray Bradbury",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 30,
+                    "id": 31,
                     "dilo": "Audience",
                     "autor": "Václav Havel",
                     "druh": "drama",
                     "obdobi": "cz20"
             },
             {
-                    "id": 31,
+                    "id": 32,
                     "dilo": "Kníška",
                     "autor": "Karel Kryl",
                     "druh": "lyrika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 32,
+                    "id": 33,
                     "dilo": "Zbabělci",
                     "autor": "Josef Škvorecký",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 33,
+                    "id": 34,
                     "dilo": "Žert",
                     "autor": "Milan Kundera",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 34,
+                    "id": 35,
                     "dilo": "Chrám Matky Boží v Paříži",
                     "autor": "Victor Hugo",
                     "druh": "epika",
                     "obdobi": "19"
             },
             {
-                    "id": 35,
+                    "id": 36,
                     "dilo": "Robinson Crusoe",
                     "autor": "Daniel Defoe",
                     "druh": "epika",
                     "obdobi": "do18"
             },
             {
-                    "id": 36,
+                    "id": 37,
                     "dilo": "Malý princ",
                     "autor": "Antoine de Saint-Exupéry",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 37,
+                    "id": 38,
                     "dilo": "Němá barikáda",
                     "autor": "Jan Drda",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 38,
+                    "id": 39,
                     "dilo": "Smrt krásných srnců",
                     "autor": "Ota Pavel",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 39,
+                    "id": 40,
                     "dilo": "Misery",
                     "autor": "Stephen King",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 40,
+                    "id": 41,
                     "dilo": "Společenstvo Prstenu",
                     "autor": "J.R.R. Tolkien",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 41,
+                    "id": 42,
                     "dilo": "Občanský průkaz",
                     "autor": "Petr Šabach",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 42,
+                    "id": 43,
                     "dilo": "Den trifidů",
                     "autor": "John Wyndham",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 43,
+                    "id": 44,
                     "dilo": "Edison",
                     "autor": "Vítězslav Nezval",
                     "druh": "lyrika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 44,
+                    "id": 45,
                     "dilo": "Zkrocení zlé ženy",
                     "autor": "William Shakespeare",
                     "druh": "drama",
                     "obdobi": "do18"
             },
             {
-                    "id": 45,
+                    "id": 46,
                     "dilo": "Strakonický dudák",
                     "autor": "Josef Kajetán Tyl",
                     "druh": "drama",
                     "obdobi": "19"
             },
             {
-                    "id": 46,
+                    "id": 47,
                     "dilo": "Babička",
                     "autor": "Božena Němcová",
                     "druh": "epika",
                     "obdobi": "19"
             },
             {
-                    "id": 47,
+                    "id": 48,
                     "dilo": "Balady a romance",
                     "autor": "Jan Neruda",
                     "druh": "lyrika",
                     "obdobi": "19"
             },
             {
-                    "id": 48,
+                    "id": 49,
                     "dilo": "Nový epochální výlet pana Broučka, tentokráte do 15. století",
                     "autor": "Svatopluk Čech",
                     "druh": "epika",
                     "obdobi": "19"
             },
             {
-                    "id": 49,
+                    "id": 50,
                     "dilo": "Bylo nás pět",
                     "autor": "Karel Poláček",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 50,
+                    "id": 51,
                     "dilo": "Maryša",
                     "autor": "Alois a Vilém Mrštíkové",
                     "druh": "drama",
                     "obdobi": "19"
             },
             {
-                    "id": 51,
+                    "id": 52,
                     "dilo": "Nikola Šuhaj loupežník",
                     "autor": "Ivan Olbracht",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 52,
+                    "id": 53,
                     "dilo": "Saturnin",
                     "autor": "Zdeněk Jirotka",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 53,
+                    "id": 54,
                     "dilo": "České nebe",
                     "autor": "Smoljak, Svěrák",
                     "druh": "drama",
                     "obdobi": "cz20"
             },
             {
-                    "id": 54,
+                    "id": 55,
                     "dilo": "Postřižiny",
                     "autor": "Bohumil Hrabal",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 55,
+                    "id": 56,
                     "dilo": "Hana",
                     "autor": "Alena Mornštajnová",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 56,
+                    "id": 57,
                     "dilo": "Tankový prapor",
                     "autor": "Josef Škvorecký",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 57,
+                    "id": 58,
                     "dilo": "Memento",
                     "autor": "Radek John",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 58,
+                    "id": 59,
                     "dilo": "Jeden den Ivana Děnisoviče",
                     "autor": "Alexandr Solženicyn",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 59,
+                    "id": 60,
                     "dilo": "Alchymista",
                     "autor": "Paulo Coelho",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 60,
+                    "id": 61,
                     "dilo": "Tartuffe",
                     "autor": "Moliére",
                     "druh": "drama",
                     "obdobi": "do18"
             },
             {
-                    "id": 61,
+                    "id": 62,
                     "dilo": "Modlitba pro K. Horovitzovou",
                     "autor": "Arnošt Lustig",
                     "druh": "epika",
                     "obdobi": "cz20"
             },
             {
-                    "id": 62,
+                    "id": 63,
                     "dilo": "Pes baskervillský",
                     "autor": "Arthur Conan Doyle",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 63,
+                    "id": 64,
                     "dilo": "Vražda v Orient-expresu",
                     "autor": "Agatha Christie",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 64,
+                    "id": 65,
                     "dilo": "Velký Gatsby",
                     "autor": "Francis Scott Fitzgerald",
                     "druh": "epika",
                     "obdobi": "svet20"
             },
             {
-                    "id": 65,
+                    "id": 66,
                     "dilo": "Pýcha a předsudek",
                     "autor": "Jane Austenová",
                     "druh": "epika",
