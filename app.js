@@ -160,15 +160,22 @@ const elements = {
 
 let currentShareUrl = "";
 
-function showToast(message) {
-    const toast = document.getElementById("toast");
+window.showToast = function(message) {
+    let toast = document.getElementById("toast");
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
     toast.textContent = message;
-    toast.classList.add("show");
     
+    // 🚀 OMEGA FIX: Měkčí design pro oba režimy (povrchová barva + akcent)
+    toast.style.cssText = "position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--accent-primary); padding: 12px 25px; border-radius: 8px; font-weight: bold; z-index: 2147483647; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 1; transition: opacity 0.3s ease; pointer-events: none; text-align: center; white-space: nowrap;";
+
     setTimeout(() => {
-        toast.classList.remove("show");
+        toast.style.opacity = '0';
     }, 3000);
-}
+};
 
 window.generateShareLink = function() {
     if (state.selectedIds.size === 0) {
@@ -1171,6 +1178,175 @@ const initOmegaEngine = () => {
 // Spouštíme okamžitě, bez čekání na prohlížeč.
 initOmegaEngine();
 
+
+
+// 🚀 OMEGA MATH ENGINE: Exaktní výpočet kaskád vs. manuálních přesunů (LIS Algoritmus)
+window.analyzeDraftChanges = function(draftDb) {
+    const prodDb = window.OMEGA_CONFIG.KNIHY_DB.map((k, i) => ({...k, id: i + 1}));
+
+    let draftMapped = draftDb.map((draftBook, idx) => {
+        let prodMatch = prodDb.find(p => p.dilo.toLowerCase().trim() === draftBook.dilo.toLowerCase().trim());
+        if (!prodMatch && draftBook._original) {
+            prodMatch = prodDb.find(p => p.id === draftBook._original.id);
+        }
+        return {
+            ...draftBook,
+            draftIndex: idx + 1,
+            prodMatch: prodMatch || null
+        };
+    });
+
+    const added = draftMapped.filter(k => !k.prodMatch);
+    const draftMatchedProdIds = draftMapped.filter(k => k.prodMatch).map(k => k.prodMatch.id);
+    const deleted = prodDb.filter(p => !draftMatchedProdIds.includes(p.id));
+
+    const draftSurviving = draftMapped.filter(k => k.prodMatch);
+
+    // LIS Výpočet (Hledá páteř děl, která se vůči sobě neposunula)
+    let lisItems = [];
+    if (draftSurviving.length > 0) {
+        let dp = Array(draftSurviving.length).fill(1);
+        let prev = Array(draftSurviving.length).fill(-1);
+        let maxLen = 1;
+        let maxIdx = 0;
+
+        for (let i = 1; i < draftSurviving.length; i++) {
+            for (let j = 0; j < i; j++) {
+                if (draftSurviving[i].prodMatch.id > draftSurviving[j].prodMatch.id && dp[i] < dp[j] + 1) {
+                    dp[i] = dp[j] + 1;
+                    prev[i] = j;
+                }
+            }
+            if (dp[i] > maxLen) {
+                maxLen = dp[i];
+                maxIdx = i;
+            }
+        }
+
+        let curr = maxIdx;
+        while (curr !== -1) {
+            lisItems.push(draftSurviving[curr].prodMatch.id);
+            curr = prev[curr];
+        }
+        lisItems.reverse();
+    }
+
+    let edited = [];
+    let manuallyMoved = [];
+    let cascadeMoved = [];
+
+    draftSurviving.forEach(draftBook => {
+        const prodBook = draftBook.prodMatch;
+        const textChanged = (draftBook.dilo !== prodBook.dilo || draftBook.autor !== prodBook.autor || draftBook.obdobi !== prodBook.obdobi || draftBook.druh !== prodBook.druh);
+        const isInLIS = lisItems.includes(prodBook.id);
+        const idChanged = draftBook.draftIndex !== prodBook.id;
+
+        if (textChanged) {
+            edited.push(draftBook);
+        } else if (!isInLIS) {
+            manuallyMoved.push(draftBook);
+        } else if (idChanged) {
+            cascadeMoved.push(draftBook);
+        }
+    });
+
+    return { added, deleted, edited, manuallyMoved, cascadeMoved, prodDb };
+};
+
+// 🚀 OMEGA TEXT ENGINE: Výpis do modálů
+window.generateDiffHtml = function(draftDb) {
+    const analysis = window.analyzeDraftChanges(draftDb);
+    let html = "";
+    
+    if (analysis.added.length === 0 && analysis.deleted.length === 0 && analysis.edited.length === 0 && analysis.manuallyMoved.length === 0 && analysis.cascadeMoved.length === 0) {
+        return "<div style='color: var(--text-muted); font-style: italic; font-size: 0.85rem;'>Žádné fyzické změny. Databáze je identická.</div>";
+    } 
+
+    if (analysis.added.length > 0) html += `<div style="color: var(--accent-green); font-size: 0.85rem;"><strong>➕ Přidáno (${analysis.added.length}):</strong> ${analysis.added.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
+    if (analysis.deleted.length > 0) html += `<div style="color: var(--accent-red); font-size: 0.85rem; margin-top: 4px;"><strong>🗑️ Odebráno (${analysis.deleted.length}):</strong> ${analysis.deleted.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
+    if (analysis.edited.length > 0) html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>✏️ Upraven text (${analysis.edited.length}):</strong> ${analysis.edited.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
+    if (analysis.manuallyMoved.length > 0) html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>↕️ Manuálně přesunuto (${analysis.manuallyMoved.length}):</strong> ${analysis.manuallyMoved.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
+    if (analysis.cascadeMoved.length > 0) html += `<div style="color: #3b82f6; font-size: 0.85rem; margin-top: 4px;"><strong>🌊 Kaskádově posunuto:</strong> ${analysis.cascadeMoved.length} děl.</div>`;
+    
+    return html;
+};
+
+// 🚀 OMEGA VISUAL ENGINE: Tabulka včetně Legendy a Barviček
+window.generateColoredPreviewTable = function(draftDb) {
+    const analysis = window.analyzeDraftChanges(draftDb);
+    let rowsHtml = "";
+    let virtualView = [];
+
+    draftDb.forEach((k) => {
+        let state = 'normal';
+        let origId = k.id; 
+        if (analysis.added.find(a => a.id === k.id)) state = 'added';
+        else {
+            const prodBook = analysis.prodDb.find(p => p.dilo.toLowerCase().trim() === k.dilo.toLowerCase().trim());
+            origId = prodBook ? prodBook.id : (k._original ? k._original.id : k.id);
+            if (analysis.edited.find(e => e.id === k.id)) state = 'edited';
+            else if (analysis.manuallyMoved.find(m => m.id === k.id)) state = 'manual_move';
+            else if (analysis.cascadeMoved.find(c => c.id === k.id)) state = 'cascade_move';
+        }
+        virtualView.push({ ...k, visualId: k.id, state, origId });
+    });
+
+    analysis.deleted.forEach(p => {
+        virtualView.push({ ...p, visualId: p.id, state: 'deleted', origId: p.id });
+    });
+
+    virtualView.sort((a, b) => {
+        if (a.state === 'deleted' && b.state !== 'deleted') return (a.origId - 0.5) - b.visualId;
+        if (a.state !== 'deleted' && b.state === 'deleted') return a.visualId - (b.origId - 0.5);
+        if (a.state === 'deleted' && b.state === 'deleted') return a.origId - b.origId;
+        return a.visualId - b.visualId;
+    });
+
+    virtualView.forEach(book => {
+        let bg = 'transparent', leftBorder = '4px solid transparent', opacity = '1', idText = book.visualId + ".";
+
+        if (book.state === 'deleted') { bg = 'rgba(239, 68, 68, 0.04)'; leftBorder = '4px solid #ef4444'; opacity = '0.5'; idText = `<strike>${book.origId}.</strike>`; } 
+        else if (book.state === 'added') { bg = 'rgba(16, 185, 129, 0.06)'; leftBorder = '4px solid #10b981'; } 
+        else if (book.state === 'edited' || book.state === 'manual_move') { bg = 'rgba(245, 158, 11, 0.08)'; leftBorder = '4px solid #f59e0b'; } 
+        else if (book.state === 'cascade_move') { bg = 'rgba(59, 130, 246, 0.05)'; leftBorder = '4px solid #3b82f6'; }
+
+        // 🚀 OMEGA FIX: Druh je nyní PŘED Obdobím
+        rowsHtml += `
+        <tr style="background: ${bg}; opacity: ${opacity}; border-bottom: 1px solid var(--border); transition: background 0.2s;" onmouseover="this.style.background='var(--bg-base)'" onmouseout="this.style.background='${bg}'">
+            <td style="padding: 8px; text-align: center; color: var(--text-muted); border-left: ${leftBorder};">${idText}</td>
+            <td style="padding: 8px; font-weight: bold; color: var(--text-main);">${sanitize(book.dilo)}</td>
+            <td style="padding: 8px; color: var(--text-muted);">${sanitize(book.autor)}</td>
+            <td style="padding: 8px; color: var(--text-muted); font-size: 0.9em;">${book.druh}</td>
+            <td style="padding: 8px; color: var(--text-muted); font-size: 0.9em;">${MAPA_OBDOBI[book.obdobi] || book.obdobi}</td>
+        </tr>`;
+    });
+
+    // 🚀 OMEGA FIX: Symetrický CSS Grid 2x2 pro legendu (perfektní zarovnání na všech displejích)
+    const legendHtml = `
+        <div style="background: var(--bg-surface); padding: 12px; border-bottom: 1px solid var(--border); border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem;">
+            <div style="color: #10b981; font-weight: bold; padding: 6px 8px; background: rgba(16, 185, 129, 0.1); border-radius: 4px; text-align: center; white-space: nowrap;">➕ Přidáno</div>
+            <div style="color: #f59e0b; font-weight: bold; padding: 6px 8px; background: rgba(245, 158, 11, 0.1); border-radius: 4px; text-align: center; white-space: nowrap;">✏️ Upraveno/Přesunuto</div>
+            <div style="color: #3b82f6; font-weight: bold; padding: 6px 8px; background: rgba(59, 130, 246, 0.1); border-radius: 4px; text-align: center; white-space: nowrap;">🌊 Kaskádový posun</div>
+            <div style="color: #ef4444; font-weight: bold; padding: 6px 8px; background: rgba(239, 68, 68, 0.1); border-radius: 4px; text-align: center; white-space: nowrap;">🗑️ Smazáno</div>
+        </div>`;
+
+    return legendHtml + `
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+            <thead style="background: #111827; border-bottom: 2px solid var(--accent-primary); position: sticky; top: 0; z-index: 10;">
+                <tr>
+                    <th style="padding: 8px; text-align: center; color: white; width: 8%;">ID</th>
+                    <th style="padding: 8px; color: white; width: 35%;">Dílo</th>
+                    <th style="padding: 8px; color: white; width: 25%;">Autor</th>
+                    <th style="padding: 8px; color: white; width: 15%;">Druh</th>
+                    <th style="padding: 8px; color: white; width: 17%;">Období</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    </div>`;
+};
+
 /* ==========================================
    OMEGA ADMIN ENGINE v7.1.0 (Enterprise)
    ========================================== */
@@ -1322,23 +1498,19 @@ window.renderAdminSummary = function() {
 let targetRevertHash = "";
 
 window.fetchPrivateAuditLog = async function() {
-
-    // 🚀 OMEGA FIX: Běžný učitel Git historii nevidí
-    if (sessionCredentials.username !== 'omega' && sessionCredentials.username !== 'vedouci') {
-        const container = document.getElementById('admin-summary-content');
-        if (container) container.innerHTML = '<div style="color: var(--text-muted); font-style: italic; padding: 10px;">Nemáte oprávnění k prohlížení produkční historie repozitáře. Zde uvidíte pouze své lokální změny.</div>';
-        return;
-    }
-
     const container = document.getElementById('admin-summary-content');
     
-    // 🚀 OMEGA FIX: Izolovaný kontejner pro Git historii (zabrání duplikaci)
-    // Pokud už existuje z předchozího volání, najdeme ho. Pokud ne, vytvoříme ho na konci.
     let gitContainer = document.getElementById('omega-git-history-layer');
     if (!gitContainer) {
         gitContainer = document.createElement('div');
         gitContainer.id = 'omega-git-history-layer';
         container.appendChild(gitContainer);
+    }
+
+    // 🚀 OMEGA FIX: Historii (Git) vidí POUZE Omega. Všem ostatním ji zcela zatajíme (ani čárka).
+    if (sessionCredentials.username !== 'omega') {
+        gitContainer.innerHTML = ''; 
+        return;
     }
 
     // Vyčistíme kontejner před novým stahováním a vložíme loading
@@ -1679,49 +1851,6 @@ window.adminDeleteChangelog = function(idx) {
     adminChangelogDb.splice(idx, 1);
     renderAdminChangelog();
 };
-// --- 🛡️ OMEGA LOCK & HEARTBEAT ENGINE ---
-let heartbeatTimer = null;
-
-window.claimDatabaseLock = async function() {
-    try {
-        const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/heartbeat", {
-            method: "POST", 
-            headers: { 
-                "Content-Type": "application/json",
-                "X-Omega-Device-Id": getDeviceIdentity()
-            },
-            body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password })
-        });
-        const data = await response.json();
-        if (response.status === 423) {
-            document.getElementById('lock-active-user').innerText = data.locked_by;
-            document.getElementById('omega-lock-modal').style.display = 'flex';
-            if (heartbeatTimer) clearInterval(heartbeatTimer);
-            return false;
-        }
-        return true;
-    } catch (error) { return true; } // Ignoruj síťový dropout
-};
-
-window.startHeartbeat = async function() {
-    const lockAcquired = await claimDatabaseLock();
-    if (lockAcquired) heartbeatTimer = setInterval(claimDatabaseLock, 30000);
-};
-
-window.releaseDatabaseLock = async function() {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    try {
-        await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/release-lock", {
-            method: "POST", 
-            headers: { 
-                "Content-Type": "application/json",
-                "X-Omega-Device-Id": getDeviceIdentity()
-            },
-            body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password })
-        });
-    } catch (e) {}
-};
-// 🚀 ZDE KONČÍ ŘEZ 5
 
 
 // --- ⏳ SECURITY: HYBRIDNÍ SESSION DECAY (HUD -> MODAL) ---
@@ -2023,9 +2152,6 @@ window.attemptAdminExit = async function() {
         // 🧹 OMEGA HACK: Zastavení živého radaru (prevence memory leaku)
         if (window.statusPollingTimer) clearInterval(window.statusPollingTimer);
         
-        // 🚀 OMEGA FIX: Aktivní zahození zámku před odchodem
-        await releaseDatabaseLock(); 
-        
         const currentTheme = localStorage.getItem('omega_theme') || 'default';
         window.location.href = window.location.pathname + "?theme=" + currentTheme;
     } else {
@@ -2038,9 +2164,6 @@ window.confirmAdminExit = async function() {
     
     // 🧹 OMEGA HACK: Zastavení živého radaru i při nuceném odchodu
     if (window.statusPollingTimer) clearInterval(window.statusPollingTimer);
-    
-    // 🚀 OMEGA FIX: Aktivní zahození zámku i při zahození změn
-    await releaseDatabaseLock(); 
     
     const currentTheme = localStorage.getItem('omega_theme') || 'default';
     window.location.href = window.location.pathname + "?theme=" + currentTheme;
@@ -2108,11 +2231,13 @@ async function enterAdminUI(user, pwd) {
         }
 
         // 🚀 OMEGA UX: Schránka pro vedoucí a Omegu
+        // 🚀 OMEGA UX: Schránka pro vedoucí a Omegu
         if (activeUser === 'vedouci' || activeUser === 'omega') {
             const inboxBtn = document.getElementById('btn-admin-inbox');
-            if (inboxBtn) inboxBtn.style.display = 'block';
-            
+            const starredBtn = document.getElementById('btn-admin-starred');
             const masterBtn = document.getElementById('btn-master-admin');
+            if (inboxBtn) inboxBtn.style.display = 'block';
+            if (starredBtn) starredBtn.style.display = 'block';
             if (masterBtn) masterBtn.style.display = 'block';
         }
 
@@ -2177,7 +2302,6 @@ async function enterAdminUI(user, pwd) {
             if (recoveryDiv) recoveryDiv.style.display = 'none';
         }
 
-        if (typeof window.startHeartbeat === 'function') window.startHeartbeat();
         if (typeof window.startIdleTimer === 'function') window.startIdleTimer();
         if (typeof window.checkSystemStatus === 'function') window.checkSystemStatus();
         // 🚀 OMEGA LIVE RADAR: Spustí polling stavu dodávky každých 15 sekund
@@ -2230,7 +2354,7 @@ if (btnAuthSubmit && authModalNode) {
 
         try {
             // 3. ABSOLUTNÍ VERIFIKACE: Dotaz na CFW před vpuštěním do UI
-            const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/heartbeat", {
+            const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
                 body: JSON.stringify({ username: user, password: pwd })
@@ -2240,35 +2364,6 @@ if (btnAuthSubmit && authModalNode) {
                 const errData = await response.json();
                 throw new Error(errData.error || "Neplatné přihlašovací údaje.");
             }
-
-            if (response.status === 423) {
-            const errData = await response.json();
-            document.getElementById('lock-active-user').innerText = errData.locked_by;
-            document.getElementById('omega-lock-modal').style.display = 'flex';
-            authModalNode.style.display = 'none';
-
-            // 🚀 OMEGA AUTO-QUEUE: Spustíme sledování, dokud je modál otevřený
-            if (!waitingRoomTimer) {
-                showToast("ℹ️ Zařazeno do fronty. Systém vás vpustí, jakmile bude volno.");
-                waitingRoomTimer = setInterval(async () => {
-                    const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/heartbeat", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-                        body: JSON.stringify({ username: pendingCreds.u, password: pendingCreds.p })
-                    });
-                    
-                    if (res.status === 200) {
-                        clearInterval(waitingRoomTimer);
-                        waitingRoomTimer = null;
-                        showToast("🔓 Databáze uvolněna! Vstupuji...");
-                        
-                        // 🚀 Místo .click() voláme přímo vstup do UI
-                        enterAdminUI(pendingCreds.u, pendingCreds.p); 
-                    }
-                }, 10000); // Kontrola každých 10 sekund (šetříme API limity)
-            }
-            return;
-        }
 
             if (!response.ok) throw new Error("Chyba při komunikaci se serverem.");
 
@@ -2332,40 +2427,68 @@ window.initAdminVirtualDb = function() {
     renderAdminChangelog();
 };
 
-// 🚀 OMEGA SMART EVALUATOR: Deterministický výpočet změn
+// 🚀 OMEGA EDITOR ENGINE: Aplikace LIS Algoritmu přímo na aktivní tabulku editoru
 window.adminEvaluateChanges = function() {
-    let currentVisualId = 1;
+    const prodDb = window.OMEGA_CONFIG.KNIHY_DB.map((k, i) => ({...k, id: i + 1}));
+    
+    // Vyčleníme si pouze živé knihy a přečíslujeme je
+    let activeBooks = adminVirtualDb.filter(b => !b._isDeleted);
+    activeBooks.forEach((b, idx) => b.id = idx + 1);
 
-    adminVirtualDb.forEach((book) => {
-        if (!book._isDeleted) {
-            book.id = currentVisualId++;
+    // Které knihy přežily z originálu?
+    const surviving = activeBooks.filter(b => !b._isAdded && b._original);
+    
+    // Vypočteme LIS (Nejdelší rostoucí podposloupnost) pro detekci kaskád
+    let lisItems = [];
+    if (surviving.length > 0) {
+        let dp = Array(surviving.length).fill(1);
+        let prev = Array(surviving.length).fill(-1);
+        let maxLen = 1;
+        let maxIdx = 0;
+        
+        for (let i = 1; i < surviving.length; i++) {
+            for (let j = 0; j < i; j++) {
+                if (surviving[i]._original.id > surviving[j]._original.id && dp[i] < dp[j] + 1) {
+                    dp[i] = dp[j] + 1;
+                    prev[i] = j;
+                }
+            }
+            if (dp[i] > maxLen) {
+                maxLen = dp[i];
+                maxIdx = i;
+            }
         }
+        
+        let curr = maxIdx;
+        while (curr !== -1) {
+            lisItems.push(surviving[curr]._original.id);
+            curr = prev[curr];
+        }
+        lisItems.reverse();
+    }
 
-        if (!book._isAdded) {
-            let textChanged = false;
-            let idChanged = false;
-            let origId = book.id;
+    // Aplikace zjištění na vizuál v editoru
+    adminVirtualDb.forEach(book => {
+        if (book._isAdded || book._isDeleted) return;
 
-            if (book._original) {
-                textChanged = (
-                    book.dilo !== book._original.dilo ||
-                    book.autor !== book._original.autor ||
-                    book.obdobi !== book._original.obdobi ||
-                    book.druh !== book._original.druh
-                );
-                idChanged = (book.id !== book._original.id);
-                origId = book._original.id;
-            }
+        const orig = book._original;
+        const textChanged = (book.dilo !== orig.dilo || book.autor !== orig.autor || book.obdobi !== orig.obdobi || book.druh !== orig.druh);
+        const isInLIS = lisItems.includes(orig.id);
+        const idChanged = book.id !== orig.id;
 
-            let explicitMove = book._moveHistory && book._moveHistory.length > 0;
-
-            // 🚀 OMEGA FIX: Zero-Sum Ghost (Pokud se dílo vrátilo přesně domů a text je stejný, anulujeme úpravy)
-            if (!textChanged && book.id === origId && !book._isDeleted) {
-                explicitMove = false; 
-                book._isEdited = false;
-            } else {
-                book._isEdited = textChanged || explicitMove || idChanged || book._isDeleted;
-            }
+        // 🚀 MAPOVÁNÍ BAREV:
+        if (textChanged) {
+            book._isEdited = true;  // ŽLUTÁ (Textová úprava)
+            book._isMoved = false;
+        } else if (!isInLIS) {
+            book._isEdited = true;  // ŽLUTÁ (Manuální vytržení z řady se rovná úpravě)
+            book._isMoved = false;
+        } else if (idChanged) {
+            book._isEdited = false;
+            book._isMoved = true;   // MODRÁ (Kaskádový posun)
+        } else {
+            book._isEdited = false;
+            book._isMoved = false;  // BEZ BARVY (Nic se nestalo)
         }
     });
 };
@@ -2983,14 +3106,20 @@ function pushToCloudflare(fileContent, turnstileToken, customMsg = "") {
 
         if (data.isSuggestion) {
             // 🚀 OMEGA FIX: Odpověď pro běžného učitele
-            msgEl.innerHTML = `✅ <strong>NÁPAD BYL ODESLÁN</strong><br>Vaše myšlenky a úpravy byly odeslány vedoucímu komise k nahlédnutí.<br><br><button onclick="closeAdminConfirmationModal(); checkSystemStatus();" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Rozumím</button>`;
+            msgEl.innerHTML = `✅ <strong>NÁPAD BYL ODESLÁN</strong><br>Vaše myšlenky a úpravy byly odeslány katedře ČJL k nahlédnutí.<br><br><button onclick="closeAdminConfirmationModal(); checkSystemStatus();" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Rozumím</button>`;
             
-            adminVirtualDb.forEach((book) => { book._isAdded = false; book._isEdited = false; });
+            // 🚀 OMEGA FIX: Tvrdý reset paměti a překreslení tabulky do výchozího stavu
+            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb();
+            if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
+            
         } else if (data.isDraft) {
             // Oficiální návrh od Vedoucího pro Vedení
             msgEl.innerHTML = `✅ <strong>NÁVRH BYL ODESLÁN VEDENÍ</strong><br>Vaše změny byly uloženy na zabezpečený server. Na webu se propíší, jakmile je vedení školy schválí.<br><br><button onclick="closeAdminConfirmationModal(); checkSystemStatus();" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Rozumím</button>`;
             
-            adminVirtualDb.forEach((book) => { book._isAdded = false; book._isEdited = false; });
+            // 🚀 OMEGA FIX: Tvrdý reset paměti a překreslení tabulky do výchozího stavu
+            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb();
+            if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
+            
         } else {
             // Přímý zápis (Omega)
             msgEl.innerHTML = `✅ <strong>AKTUALIZACE ÚSPĚŠNÁ!</strong><br>Databáze byla exaktně zapsána do repozitáře.<br><br><button onclick="closeAdminConfirmationModal()" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Zavřít okno</button>`;
@@ -3437,23 +3566,44 @@ window.adminDeleteChangelog = function(idx) {
 
 // --- 🏛️ OMEGA GOVERNANCE ENGINE ---
 
-// --- 🚀 OMEGA UI: Minimalizace Trackeru ---
+// --- 🚀 OMEGA UI: Minimalizace Trackeru a State Management ---
+window.OMEGA_TRACKER_DISMISSED = false;
+window.LAST_SEEN_TRUCK_STATUS = null;
+
+window.dismissTruckTracker = function() {
+    window.OMEGA_TRACKER_DISMISSED = true; // Zapsáno do paměti relace
+    const tracker = document.getElementById('omega-truck-tracker');
+    if (tracker) tracker.style.display = 'none';
+};
+
 window.toggleTruckTracker = function() {
     const body = document.getElementById('truck-body-container');
     const btn = document.getElementById('truck-toggle-btn');
     
-    if (body.style.display === 'none' || body.style.opacity === '0') {
-        body.style.display = 'block';
-        setTimeout(() => body.style.opacity = '1', 10);
-        btn.innerHTML = '➖ Zabalit';
-    } else {
+    // 🚀 OMEGA FIX: Plynulá interpolace přes max-height
+    if (!body.style.maxHeight || body.style.maxHeight !== '0px') {
+        body.style.maxHeight = '0px';
         body.style.opacity = '0';
-        setTimeout(() => body.style.display = 'none', 300);
+        body.style.marginTop = '0px';
         btn.innerHTML = '➕ Rozbalit';
+    } else {
+        body.style.maxHeight = '150px'; 
+        body.style.opacity = '1';
+        body.style.marginTop = '30px';
+        btn.innerHTML = '➖ Zabalit';
     }
 };
 
 function updateDeliveryTruck(status, feedback = "") {
+    // 🚀 OMEGA FIX: Pokud se změní stav (např. z pending na rejected), resetujeme paměť a Tracker znovu vyskočí
+    if (window.LAST_SEEN_TRUCK_STATUS !== status) {
+        window.OMEGA_TRACKER_DISMISSED = false;
+        window.LAST_SEEN_TRUCK_STATUS = status;
+    }
+
+    // Pokud uživatel tento konkrétní stav už zavřel, vyhneme se překreslení
+    if (window.OMEGA_TRACKER_DISMISSED) return;
+
     const tracker = document.getElementById('omega-truck-tracker');
     const line = document.getElementById('truck-progress-line');
     const truck = document.getElementById('truck-icon');
@@ -3480,9 +3630,9 @@ function updateDeliveryTruck(status, feedback = "") {
         statusText.innerHTML = "Balíček je na celnici. Čeká se na audit vedení školy.";
         statusText.style.color = "#f59e0b";
         
-        line.style.width = '63%'; // 🚀 FIX: Zkráceno, aby opticky lícovalo
+        line.style.width = '63%'; 
         line.style.background = '#f59e0b';
-        truck.style.left = '65%'; // 🚀 FIX: Optický střed pro zastávku Celnice
+        truck.style.left = '65%'; 
         truck.innerText = "🚚";
         truck.style.transform = "translateX(-50%) scaleX(-1)"; 
         
@@ -3496,7 +3646,7 @@ function updateDeliveryTruck(status, feedback = "") {
         
         line.style.width = '0%';
         line.style.background = '#ef4444';
-        truck.style.left = '12%'; // 🚀 FIX: Odsazeno, aby se kouř z výfuku "🚐💨" nelepil na okraj
+        truck.style.left = '12%'; 
         truck.innerText = "🚐💨"; 
         truck.style.transform = "translateX(-50%) scaleX(1)"; 
         
@@ -3508,38 +3658,20 @@ function updateDeliveryTruck(status, feedback = "") {
 }
 
 function renderDraftDiff(draftDb) {
-    const currDb = window.OMEGA_CONFIG.KNIHY_DB;
-    const currNames = currDb.map(k => k.dilo.toLowerCase().trim());
-    const draftNames = draftDb.map(k => k.dilo.toLowerCase().trim());
-
-    const added = draftDb.filter(k => !currNames.includes(k.dilo.toLowerCase().trim()));
-    const removed = currDb.filter(k => !draftNames.includes(k.dilo.toLowerCase().trim()));
-
     const container = document.getElementById('approval-diff-container');
     if (!container) return;
 
-    let html = "";
-    if(added.length === 0 && removed.length === 0) {
-        html = "<div style='color: var(--text-muted); font-style: italic;'>Změny se týkají pouze metadat (autor, období) nebo úpravy pořadí děl. Fyzická díla zůstávají stejná.</div>";
-    } else {
-        if(added.length > 0) {
-            html += `<div style="color: var(--accent-green); margin-bottom: 8px;"><strong>➕ Požadováno přidat:</strong><ul style="margin: 4px 0 0 0; padding-left: 20px;">${added.map(k=>`<li>${sanitize(k.dilo)} <span style="opacity:0.6; font-size:0.8em;">(${sanitize(k.autor)})</span></li>`).join('')}</ul></div>`;
-        }
-        if(removed.length > 0) {
-            html += `<div style="color: var(--accent-red);"><strong>🗑️ Požadováno odstranit:</strong><ul style="margin: 4px 0 0 0; padding-left: 20px;">${removed.map(k=>`<li>${sanitize(k.dilo)} <span style="opacity:0.6; font-size:0.8em;">(${sanitize(k.autor)})</span></li>`).join('')}</ul></div>`;
-        }
-    }
+    // Využijeme nový textový generátor pro "Fyzické změny"
+    let html = window.generateDiffHtml(draftDb);
     
-    // 🚀 OMEGA FIX: Tlačítko pro zobrazení celého kompletního seznamu pro Vedení
+    // 🚀 OMEGA FIX: Napojení nového barevného jádra pro detailní kontrolu vedením
     html += `
         <div style="margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px;">
-            <button onclick="document.getElementById('full-draft-list').style.display = document.getElementById('full-draft-list').style.display === 'none' ? 'block' : 'none'" style="background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%; transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'" onmouseout="this.style.borderColor='var(--border)'">
-                👁️ Zobrazit kompletní navrhovaný seznam (${draftDb.length} děl)
+            <button onclick="const l = document.getElementById('full-draft-list'); const isHidden = l.style.display === 'none'; l.style.display = isHidden ? 'block' : 'none'; this.innerHTML = isHidden ? '➖ Skrýt vizualizaci změn' : '👁️ Zobrazit kompletní vizualizaci změn (${draftDb.length} děl)';" style="background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%; transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'" onmouseout="this.style.borderColor='var(--border)'">
+                👁️ Zobrazit kompletní vizualizaci změn (${draftDb.length} děl)
             </button>
-            <div id="full-draft-list" style="display: none; margin-top: 15px; background: var(--bg-surface); padding: 15px; border-radius: 6px; border: 1px solid var(--border); box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);">
-                <ol style="margin: 0; padding-left: 20px; font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
-                    ${draftDb.map(k => `<li><strong>${sanitize(k.dilo)}</strong> <span style="opacity: 0.6;">(${sanitize(k.autor)})</span></li>`).join('')}
-                </ol>
+            <div id="full-draft-list" style="display: none; margin-top: 15px; background: var(--bg-surface); border-radius: 6px; border: 1px solid var(--border); box-shadow: inset 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
+                ${window.generateColoredPreviewTable(draftDb)}
             </div>
         </div>
     `;
@@ -3547,145 +3679,414 @@ function renderDraftDiff(draftDb) {
     container.innerHTML = html;
 }
 
-// --- 🕊️ OMEGA INBOX MODAL LOGIC ---
+// --- 🕊️ OMEGA PULL REQUEST ENGINE (Inbox V3) ---
+window.OMEGA_INBOX_CACHE = []; 
+window.CURRENT_INBOX_TAB = 'new'; // 'new' nebo 'starred'
+
 window.openInboxModal = function() {
     document.getElementById('omega-inbox-modal').style.display = 'flex';
-    fetchInbox(); // Vynucený refresh při otevření
+    fetchInbox(); 
+};
+
+window.switchInboxTab = function(tab) {
+    window.CURRENT_INBOX_TAB = tab;
+    const isNew = tab === 'new';
+    
+    document.getElementById('tab-inbox-new').style.color = isNew ? 'var(--accent-green)' : 'var(--text-muted)';
+    document.getElementById('tab-inbox-new').style.borderBottomColor = isNew ? 'var(--accent-green)' : 'transparent';
+    
+    document.getElementById('tab-inbox-starred').style.color = !isNew ? '#f59e0b' : 'var(--text-muted)';
+    document.getElementById('tab-inbox-starred').style.borderBottomColor = !isNew ? '#f59e0b' : 'transparent';
+    
+    renderInboxContent();
 };
 
 window.fetchInbox = async function() {
     if (sessionCredentials.username !== 'vedouci' && sessionCredentials.username !== 'omega') return;
-    
     try {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/list", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
             body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
         });
-        const inboxData = await res.json();
+        window.OMEGA_INBOX_CACHE = await res.json();
         
-        // 🚀 Aktualizace Badge v horní liště
+        // 🚀 OMEGA FIX: Badge počítá POUZE nepřečtené (neohvězdičkované)
+        const unreadCount = window.OMEGA_INBOX_CACHE.filter(m => !m.starred).length;
         const badge = document.getElementById('inbox-badge');
         if (badge) {
-            badge.innerText = inboxData.length;
-            badge.style.opacity = inboxData.length > 0 ? '1' : '0';
+            badge.innerText = unreadCount;
+            badge.style.opacity = unreadCount > 0 ? '1' : '0';
         }
         
-        const content = document.getElementById('inbox-content');
-        if (!content) return;
-        
-        // 🕊️ OMEGA FIX: Prázdný stav s holubem
-        if (inboxData.length === 0) {
-            content.innerHTML = `
-                <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed var(--border);">
-                    <div style="font-size: 3rem; margin-bottom: 15px;">🕊️</div>
-                    <h4 style="margin: 0 0 5px 0; color: var(--text-main);">Poštovní holub hlásí prázdno</h4>
-                    <p style="margin: 0; font-size: 0.9rem;">Zatím nedorazily žádné nové nápady od kolegů.</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Vykreslení dat, pokud existují
-        content.innerHTML = inboxData.reverse().map(msg => `
-            <div style="background: var(--bg-base); border: 1px solid var(--border); padding: 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: flex-start; gap: 15px;">
-                <div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">📅 ${msg.date} | 👤 <strong style="color: var(--accent-green);">${sanitize(msg.author)}</strong> navrhuje:</div>
-                    <div style="color: var(--text-main); font-style: italic; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 4px; border-left: 2px solid var(--accent-green);">"${sanitize(msg.msg)}"</div>
-                </div>
-                <button onclick="dismissInboxMessage('${msg.id}')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.2rem; transition: 0.2s;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'" title="Smazat nápad">🗑️</button>
-            </div>
-        `).join('');
-    } catch (e) { console.error("Inbox Sync Failed", e); }
-};
-
-window.dismissInboxMessage = async function(id) {
-    showToast("⏳ Odstraňuji nápad...");
-    try {
-        await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
-        });
-        fetchInbox(); // Refresh UI
+        renderInboxContent();
     } catch (e) {}
 };
 
-window.checkSystemStatus = async function() {
-    try {
-        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
-        });
-        const data = await res.json();
-        const user = sessionCredentials.username.toLowerCase();
+window.renderInboxContent = function() {
+    const content = document.getElementById('inbox-content');
+    if (!content) return;
+    
+    const isStarredTab = window.CURRENT_INBOX_TAB === 'starred';
+    const filteredData = window.OMEGA_INBOX_CACHE.filter(m => isStarredTab ? m.starred : !m.starred).reverse();
+    
+    if (filteredData.length === 0) {
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed var(--border);">
+                <div style="font-size: 3rem; margin-bottom: 15px;">${isStarredTab ? '⭐' : '🕊️'}</div>
+                <h4 style="margin: 0 0 5px 0; color: var(--text-main);">${isStarredTab ? 'Žádné uložené nápady' : 'Poštovní holub hlásí prázdno'}</h4>
+                <p style="margin: 0; font-size: 0.9rem;">${isStarredTab ? 'Zatím jste si žádný nápad neoznačili hvězdičkou.' : 'Zatím nedorazily žádné nové nápady od kolegů.'}</p>
+            </div>`;
+        return;
+    }
+
+    content.innerHTML = filteredData.map(msg => {
+        let diffHtml = "Chyba analýzy";
+        const jsonMatch = msg.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+        if (jsonMatch) diffHtml = generateDiffHtml(JSON.parse(jsonMatch[1]));
         
-        // Vizuál dodávky se ukazuje POUZE vedoucímu a omeze (běžní učitelé posílají rovnou do Inboxu)
-        if (user === 'vedouci' || user === 'omega') {
-            updateDeliveryTruck(data.status, data.feedback);
-            if (typeof window.fetchInbox === 'function') window.fetchInbox();
-        }
+        const starColor = msg.starred ? '#f59e0b' : 'var(--text-muted)';
+        const starIcon = msg.starred ? '★' : '☆';
 
-        const approvalForm = document.getElementById('admin-form-approval');
-        const saveBtn = document.querySelector('button[onclick="prepareDatabaseExport()"]');
-
-        if (data.status === 'pending') {
-            // Zablokování opětovného odeslání pro Vedoucího
-            if (user === 'vedouci' && saveBtn) saveBtn.style.display = 'none';
-
-            if (user === 'vedeni') {
-                if (approvalForm) approvalForm.style.display = 'flex';
-                const emptyState = document.getElementById('vedeni-empty-state');
-                if (emptyState) emptyState.style.display = 'none';
-
-                document.getElementById('approval-info').innerHTML = `Návrh vypracoval(a): <strong>${sanitize(data.author)}</strong> (${data.date})<br>Důvod úprav: <em>"${sanitize(data.commitMsg)}"</em>`;
-                if (data.payload) {
-                    const jsonMatch = data.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
-                    if (jsonMatch) {
-                        window.DRAFT_KNIHY_DB = JSON.parse(jsonMatch[1]);
-                        if (typeof renderDraftDiff === 'function') renderDraftDiff(window.DRAFT_KNIHY_DB);
-                    }
-                }
-            }
-        } else {
-            // 🚀 OMEGA FIX: Pokud stav není pending (např. byl zamítnut), tlačítko Uložit se musí znovu rozsvítit!
-            if (user !== 'vedeni' && saveBtn) saveBtn.style.display = 'block';
-
-            if (user === 'vedeni') {
-                if (approvalForm) approvalForm.style.display = 'none';
-                
-                // 🚀 OMEGA FIX: Empty state pro Vedení (žádný šedý flek, zobrazení ☕)
-                let emptyState = document.getElementById('vedeni-empty-state');
-                if (!emptyState) {
-                    emptyState = document.createElement('div');
-                    emptyState.id = 'vedeni-empty-state';
-                    emptyState.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: rgba(52, 152, 219, 0.05); border: 1px dashed var(--accent-primary-light); border-radius: 8px; margin-bottom: 20px;">
-                        <div style="font-size: 2.5rem; margin-bottom: 10px; opacity: 0.8;">☕</div>
-                        <h3 style="margin: 0 0 5px 0; color: var(--accent-primary);">Vše je aktuální</h3>
-                        <p style="margin: 0; font-size: 0.9rem;">Momentálně nečekají žádné návrhy komise na schválení.</p>
-                    </div>`;
-                    approvalForm.parentNode.insertBefore(emptyState, approvalForm);
-                }
-                emptyState.style.display = 'block';
-            }
-        }
-    } catch (e) { console.error("Governance Sync Failed", e); }
+        return `
+        <div style="background: var(--bg-base); border: 1px solid ${msg.starred ? '#f59e0b' : 'var(--border)'}; padding: 15px; border-radius: 6px; margin-bottom: 15px; position: relative;">
+            <button onclick="toggleStarInbox('${msg.id}')" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: ${starColor}; font-size: 1.5rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Uložit k projednání">${starIcon}</button>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">📅 ${msg.date} | 👤 <strong style="color: var(--accent-primary);">${sanitize(msg.author)}</strong></div>
+            <div style="color: var(--text-main); font-style: italic; margin-bottom: 12px; font-size: 0.95rem;">"${sanitize(msg.msg)}"</div>
+            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; border-left: 2px solid var(--border); margin-bottom: 15px;">
+                ${diffHtml}
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="previewInboxIdea('${msg.id}')" class="btn" style="flex: 1; border-color: var(--border); color: var(--text-main); transition: 0.2s;" onmouseover="this.style.background='var(--bg-surface)'">👁️ Zobrazit kompletní seznam</button>
+                <button onclick="openIdeaRejectModal('${msg.id}')" class="btn" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding: 8px 15px; transition: 0.2s;" onmouseover="this.style.background='var(--accent-red)'; this.style.color='white';">❌ Zamítnout</button>
+            </div>
+        </div>`;
+    }).join('');
 };
 
-window.handleDraftAction = async function(action) {
-    if (action === 'reject') {
-        const feedback = prompt("Zadejte důvod zamítnutí pro předmětovou komisi (povinné):");
-        if (!feedback) return;
-        executeDraftApi('/draft/reject', { feedback });
-    } else {
-        if (confirm("Opravdu chcete návrh veřejně publikovat na web školy? (Tato akce přepíše produkci)")) {
-            executeDraftApi('/draft/approve', {});
+window.toggleStarInbox = async function(id) {
+    const msg = window.OMEGA_INBOX_CACHE.find(m => m.id === id);
+    if (msg) {
+        msg.starred = !msg.starred; 
+        
+        // 🚀 OMEGA FIX: 0ms latence. Překreslujeme lokálně. Žádné volání fetchInbox()!
+        const unreadData = window.OMEGA_INBOX_CACHE.filter(m => !m.starred);
+        const starredData = window.OMEGA_INBOX_CACHE.filter(m => m.starred);
+        
+        const badgeInbox = document.getElementById('inbox-badge');
+        if (badgeInbox) { badgeInbox.innerText = unreadData.length; badgeInbox.style.opacity = unreadData.length > 0 ? '1' : '0'; }
+        
+        const badgeStarred = document.getElementById('starred-badge');
+        if (badgeStarred) { badgeStarred.innerText = starredData.length; badgeStarred.style.opacity = starredData.length > 0 ? '1' : '0'; }
+        
+        renderInboxContent(unreadData, 'inbox-content', false);
+        renderInboxContent(starredData, 'starred-content', true);
+    }
+    
+    // Tichý zápis na pozadí. Nečekáme na odpověď.
+    try {
+        fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/star", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
+        });
+    } catch (e) {}
+};
+
+// --- 👁️ OMEGA IDEA PREVIEW ENGINE ---
+window.previewInboxIdea = function(msgId) {
+    const msg = window.OMEGA_INBOX_CACHE.find(m => m.id === msgId);
+    if (!msg) return;
+    
+    let draftDb;
+    try {
+        const jsonMatch = msg.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+        draftDb = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(msg.payload);
+    } catch (err) { return showToast("❌ Nelze analyzovat data nápadu."); }
+    
+    document.getElementById('preview-idea-msg-id').value = msgId;
+    document.getElementById('idea-preview-diff').innerHTML = window.generateDiffHtml(draftDb);
+    
+    // 🚀 OMEGA FIX: Odstraněn zastaralý HTML kód. Nyní se volá barevné vizualizační jádro!
+    document.getElementById('idea-preview-table').innerHTML = window.generateColoredPreviewTable(draftDb);
+    
+    document.getElementById('omega-idea-preview-modal').style.display = 'flex';
+};
+// --- ☁️ OMEGA CLOUD STASH (Uložení práce na PIN) ---
+window.stashCurrentWork = async function() {
+    const currentDraft = adminVirtualDb.filter(k => !k._isDeleted).map((k, idx) => ({
+        id: idx + 1, dilo: sanitize(k.dilo), autor: sanitize(k.autor), druh: k.druh, obdobi: k.obdobi
+    }));
+    showToast("⏳ Ukládám stav do cloudu...");
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/stash-save", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, fileContent: JSON.stringify(currentDraft) })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        
+        document.getElementById('stash-pin-display').innerHTML = `<span style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;" onclick="navigator.clipboard.writeText('${data.pin}'); showToast('✅ PIN [${data.pin}] úspěšně zkopírován!');" title="Klikněte pro zkopírování">${data.pin}</span>`;
+        
+        document.getElementById('stash-copy-btn').onclick = () => {
+            navigator.clipboard.writeText(data.pin).then(() => {
+                showToast(`✅ PIN [${data.pin}] byl zkopírován do schránky!`);
+            }).catch(e => showToast("⚠️ Kopírování selhalo. Zkopírujte kód ručně."));
+        };
+        document.getElementById('omega-pin-save-modal').style.display = 'flex';
+    } catch(e) { showToast("❌ " + e.message); }
+};
+
+window.openPinLoadModal = function() {
+    document.getElementById('load-pin-input').value = '';
+    document.getElementById('omega-pin-load-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('load-pin-input').focus(), 100);
+};
+
+window.executeStashLoad = async function() {
+    const pin = document.getElementById('load-pin-input').value.trim();
+    if (pin.length !== 4) return showToast("⚠️ PIN musí mít přesně 4 znaky.");
+    showToast("⏳ Stahuji data z cloudu...");
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/stash-load", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, pin: pin })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        
+        // 🚀 OMEGA FIX: Přesměrováno na rekonstrukční jádro
+        window.reconstructVirtualDbFromDraft(JSON.parse(data.data));
+        
+        document.getElementById('omega-pin-load-modal').style.display = 'none';
+        showToast(`✅ Data z PINu [${pin.toUpperCase()}] byla úspěšně načtena!`);
+    } catch(e) { showToast("❌ " + e.message); }
+};
+
+// --- 🕊️ OMEGA PULL REQUEST ENGINE (Inbox V5 - Finální verze) ---
+window.OMEGA_INBOX_CACHE = []; 
+window.CURRENT_INBOX_TAB = 'new'; // 'new' nebo 'starred'
+
+window.openInboxModal = function() {
+    document.getElementById('omega-inbox-modal').style.display = 'flex';
+    fetchInbox(); 
+};
+
+window.openStarredModal = function() {
+    document.getElementById('omega-starred-modal').style.display = 'flex';
+    fetchInbox(); 
+};
+
+window.fetchInbox = async function() {
+    if (sessionCredentials.username !== 'vedouci' && sessionCredentials.username !== 'omega') return;
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/list", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+        });
+        window.OMEGA_INBOX_CACHE = await res.json();
+        
+        const unreadData = window.OMEGA_INBOX_CACHE.filter(m => !m.starred);
+        const starredData = window.OMEGA_INBOX_CACHE.filter(m => m.starred);
+        
+        const badgeInbox = document.getElementById('inbox-badge');
+        if (badgeInbox) { badgeInbox.innerText = unreadData.length; badgeInbox.style.opacity = unreadData.length > 0 ? '1' : '0'; }
+        
+        const badgeStarred = document.getElementById('starred-badge');
+        if (badgeStarred) { badgeStarred.innerText = starredData.length; badgeStarred.style.opacity = starredData.length > 0 ? '1' : '0'; }
+        
+        renderInboxContent(unreadData, 'inbox-content', false);
+        renderInboxContent(starredData, 'starred-content', true);
+    } catch (e) {}
+};
+
+window.renderInboxContent = function(dataArray, containerId, isStarred) {
+    const content = document.getElementById(containerId);
+    if (!content) return;
+    
+    if (dataArray.length === 0) {
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-surface); border-radius: 8px; border: 1px dashed var(--border);">
+                <div style="font-size: 3rem; margin-bottom: 15px;">${isStarred ? '⭐' : '🕊️'}</div>
+                <h4 style="margin: 0 0 5px 0; color: var(--text-main);">${isStarred ? 'Žádné uložené nápady' : 'Schránka je prázdná'}</h4>
+            </div>`;
+        return;
+    }
+
+    content.innerHTML = dataArray.reverse().map(msg => {
+        let diffHtml = "Chyba analýzy";
+        let draftDb = [];
+        try {
+            const jsonMatch = msg.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+            draftDb = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(msg.payload);
+            diffHtml = generateDiffHtml(draftDb);
+        } catch(e) {}
+        
+        const starColor = isStarred ? '#f59e0b' : 'var(--text-muted)';
+        const starIcon = isStarred ? '★ Uloženo' : '☆ Uložit k projednání';
+        
+        const btnStyleBase = "flex: 1; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s;";
+        const btnStyleAction = "flex: 1; background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent-green); color: var(--accent-green); padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s;";
+        const btnStyleDanger = "flex: 1; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--accent-red); color: var(--accent-red); padding: 10px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s;";
+
+        const actionButtons = isStarred 
+            ? `<button onclick="previewInboxIdea('${msg.id}')" style="${btnStyleAction}" onmouseover="this.style.background='var(--accent-green)'; this.style.color='white';">👁️ Zobrazit a převzít</button>
+               <button onclick="dismissInboxMessage('${msg.id}')" style="${btnStyleDanger}" onmouseover="this.style.background='var(--accent-red)'; this.style.color='white';">🗑️ Trvale odstranit</button>`
+            : `<button onclick="previewInboxIdea('${msg.id}')" style="${btnStyleBase}" onmouseover="this.style.borderColor='var(--accent-primary)'; this.style.color='var(--accent-primary)';">👁️ Zobrazit návrh</button>
+               <button onclick="openIdeaRejectModal('${msg.id}')" style="${btnStyleDanger}" onmouseover="this.style.background='var(--accent-red)'; this.style.color='white';">❌ Zamítnout</button>`;
+
+        return `
+        <div style="background: var(--bg-base); border: 1px solid ${isStarred ? '#f59e0b' : 'var(--border)'}; padding: 15px; border-radius: 6px; margin-bottom: 15px; position: relative;">
+            <button onclick="toggleStarInbox('${msg.id}')" style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: ${starColor}; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.2s;" title="Přesunout">${starIcon}</button>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">📅 ${msg.date} | 👤 <strong style="color: var(--accent-primary);">${sanitize(msg.author)}</strong></div>
+            <div style="color: var(--text-main); font-style: italic; margin-bottom: 12px; font-size: 0.95rem;">"${sanitize(msg.msg)}"</div>
+            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; border-left: 2px solid ${isStarred ? '#f59e0b' : 'var(--border)'}; margin-bottom: 15px;">
+                ${diffHtml}
+            </div>
+            <div style="display: flex; gap: 10px;">${actionButtons}</div>
+        </div>`;
+    }).join('');
+};
+
+window.toggleStarInbox = async function(id) {
+    const msg = window.OMEGA_INBOX_CACHE.find(m => m.id === id);
+    if (msg) { msg.starred = !msg.starred; fetchInbox(); } 
+    try {
+        await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/star", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
+        });
+    } catch (e) {}
+};
+
+window.dismissInboxMessage = async function(id) {
+    // 🚀 OMEGA FIX: Vymazán nehezký alert. 0ms latence.
+    window.OMEGA_INBOX_CACHE = window.OMEGA_INBOX_CACHE.filter(m => m.id !== id);
+    
+    const unreadData = window.OMEGA_INBOX_CACHE.filter(m => !m.starred);
+    const starredData = window.OMEGA_INBOX_CACHE.filter(m => m.starred);
+    
+    const badgeInbox = document.getElementById('inbox-badge');
+    if (badgeInbox) { badgeInbox.innerText = unreadData.length; badgeInbox.style.opacity = unreadData.length > 0 ? '1' : '0'; }
+    
+    const badgeStarred = document.getElementById('starred-badge');
+    if (badgeStarred) { badgeStarred.innerText = starredData.length; badgeStarred.style.opacity = starredData.length > 0 ? '1' : '0'; }
+    
+    renderInboxContent(unreadData, 'inbox-content', false);
+    renderInboxContent(starredData, 'starred-content', true);
+
+    showToast("🗑️ Nápad odstraněn.");
+
+    // Tichý výmaz na pozadí.
+    try {
+        fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/delete", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
+        });
+    } catch (e) {}
+};
+
+// 🚀 OMEGA RECONSTRUCTOR: Propárování cizích dat na originál (Nutné pro LIS Algoritmus)
+window.reconstructVirtualDbFromDraft = function(draftDb) {
+    // FIX: Zde se původní databázi dodají IDčka, aby měl algoritmus podle čeho počítat osy
+    const prodDb = window.OMEGA_CONFIG.KNIHY_DB.map((k, i) => ({...k, id: i + 1}));
+    adminVirtualDb = [];
+
+    draftDb.forEach((k, idx) => {
+        const orig = prodDb.find(prodBook => prodBook.dilo.toLowerCase().trim() === k.dilo.toLowerCase().trim());
+        adminVirtualDb.push({
+            ...k,
+            id: idx + 1,
+            _isDeleted: false,
+            _isAdded: !orig,
+            _isEdited: false,
+            _uid: Math.random().toString(36).substr(2, 9),
+            _original: orig || {...k, id: idx + 1} 
+        });
+    });
+
+    prodDb.forEach(prodBook => {
+        const existsInDraft = draftDb.find(draftBook => draftBook.dilo.toLowerCase().trim() === prodBook.dilo.toLowerCase().trim());
+        if (!existsInDraft) {
+            adminVirtualDb.push({
+                ...prodBook,
+                _isDeleted: true,
+                _isAdded: false,
+                _isEdited: false,
+                _uid: Math.random().toString(36).substr(2, 9),
+                _original: {...prodBook}
+            });
         }
+    });
+
+    // Spustí LIS algoritmus a rozzáří barvy
+    if (typeof window.adminEvaluateChanges === 'function') window.adminEvaluateChanges();
+    if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
+    if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
+};
+
+window.confirmInboxMerge = async function() {
+    try {
+        const msgId = document.getElementById('preview-idea-msg-id').value;
+        const msg = window.OMEGA_INBOX_CACHE.find(m => m.id === msgId);
+        if (!msg) throw new Error("Zpráva nenalezena v paměti.");
+        
+        let draftDb;
+        const jsonMatch = msg.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+        draftDb = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(msg.payload); 
+        
+        // 🚀 OMEGA FIX: Přesměrováno na rekonstrukční jádro (Opravuje kaskády)
+        window.reconstructVirtualDbFromDraft(draftDb);
+        
+        document.getElementById('omega-idea-preview-modal').style.display = 'none';
+        document.getElementById('omega-inbox-modal').style.display = 'none';
+        document.getElementById('omega-starred-modal').style.display = 'none';
+        showToast("✅ Nápad byl převzat do vašeho editoru.");
+        
+        fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/accept", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: msgId })
+        });
+    } catch (err) {
+        showToast("❌ Chyba při převzetí: " + err.message);
     }
 };
 
-async function executeDraftApi(endpoint, extraData) {
+window.openIdeaRejectModal = function(id) {
+    document.getElementById('reject-idea-msg-id').value = id;
+    document.getElementById('reject-idea-input').value = '';
+    document.getElementById('omega-reject-idea-modal').style.display = 'flex';
+};
+
+window.executeIdeaReject = async function() {
+    const id = document.getElementById('reject-idea-msg-id').value;
+    const feedback = document.getElementById('reject-idea-input').value.trim();
+    if (!feedback) return showToast("⚠️ Zadejte důvod zamítnutí.");
+    
+    document.getElementById('omega-reject-idea-modal').style.display = 'none';
+    showToast("⏳ Odesílám zamítnutí učiteli...");
+    try {
+        await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/reject", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id, feedback: feedback })
+        });
+        fetchInbox(); 
+    } catch (e) {}
+};
+
+// --- 🚀 OMEGA VEDENÍ ACTION ENGINE ---
+window.handleDraftAction = function(action) {
+    if (action === 'approve') {
+        document.getElementById('omega-approve-modal').style.display = 'flex';
+    } else if (action === 'reject') {
+        window.openRejectModal(); // Vedení zamítá návrh
+    }
+};
+
+window.executeDraftApprove = async function() {
+    document.getElementById('omega-approve-modal').style.display = 'none';
+    window.executeDraftApi('/draft/approve', {});
+};
+
+window.executeDraftApi = async function(endpoint, extraData) {
     showToast("⏳ Komunikuji s Edge sítí...");
     try {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + endpoint, {
@@ -3697,19 +4098,17 @@ async function executeDraftApi(endpoint, extraData) {
                 ...extraData
             })
         });
-        if (!res.ok) throw new Error("Chyba při operaci.");
+        if (!res.ok) throw new Error("Chyba při operaci na serveru.");
         showToast("✅ Operace proběhla úspěšně.");
         
-        // 🚀 OMEGA FIX: Místo reloadu asynchronně překreslíme rozhraní a zavřeme případné modály
-        if (sessionCredentials.username === 'vedeni') {
-            document.getElementById('admin-form-approval').style.display = 'none'; // Schová schvalovací panel
-        }
-        checkSystemStatus(); // Tracker se posune dál
-
+        const approvalForm = document.getElementById('admin-form-approval');
+        if (approvalForm) approvalForm.style.display = 'none'; 
+        
+        window.checkSystemStatus(); 
     } catch (err) {
         showToast("❌ Selhání: " + err.message);
     }
-}
+};
 
 window.openRejectModal = function() {
     const modal = document.getElementById('omega-reject-modal');
@@ -3727,5 +4126,112 @@ window.executeReject = function() {
         return;
     }
     document.getElementById('omega-reject-modal').style.display = 'none';
-    executeDraftApi('/draft/reject', { feedback });
+    window.executeDraftApi('/draft/reject', { feedback });
+};
+
+// --- 🚦 OMEGA GOVERNANCE & SYSTEM STATUS ---
+window.checkSystemStatus = async function() {
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+        });
+        const data = await res.json();
+        const user = sessionCredentials.username.toLowerCase();
+        
+        if (data.userFeedback) {
+            let feedbackBanner = document.getElementById('user-feedback-banner');
+            if (!feedbackBanner) {
+                feedbackBanner = document.createElement('div');
+                feedbackBanner.id = 'user-feedback-banner';
+                const mainContent = document.querySelector('#omega-admin-portal > h2');
+                mainContent.parentNode.insertBefore(feedbackBanner, mainContent);
+            }
+            
+            let rejectedDiff = "Chyba analýzy";
+            try {
+                const jsonMatch = data.userFeedback.originalPayload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+                if (jsonMatch) rejectedDiff = generateDiffHtml(JSON.parse(jsonMatch[1]));
+            } catch(e) {}
+
+            const isAccepted = data.userFeedback.status === 'accepted';
+            const colorMain = isAccepted ? 'var(--accent-green)' : 'var(--accent-red)';
+            const bgMain = isAccepted ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+            const iconMain = isAccepted ? '✅' : '❌';
+            const titleText = isAccepted ? 'Váš nápad byl přijat katedrou ČJL' : 'Váš návrh byl katedrou ČJL zamítnut';
+
+            feedbackBanner.innerHTML = `
+                <div style="background: ${bgMain}; border: 1px solid ${colorMain}; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="width: 100%;">
+                        <h4 style="margin: 0 0 10px 0; color: ${colorMain}; font-size: 1.1rem;">${iconMain} ${titleText}</h4>
+                        <div style="font-size: 0.9rem; color: var(--text-main); font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed ${colorMain}; opacity: 0.8;">
+                            Zpětná vazba: "${sanitize(data.userFeedback.feedback)}"
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px;">Původní zpráva: "${sanitize(data.userFeedback.originalMsg)}"</div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; border-left: 2px solid ${colorMain};">
+                            ${rejectedDiff}
+                        </div>
+                    </div>
+                    <button onclick="this.parentNode.parentNode.remove()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; padding: 0 0 0 15px; transition: 0.2s;" onmouseover="this.style.color='${colorMain}'" onmouseout="this.style.color='var(--text-muted)'">×</button>
+                </div>
+            `;
+        }
+
+        if (user === 'vedouci' || user === 'omega') {
+            updateDeliveryTruck(data.status, data.feedback);
+            if (typeof window.fetchInbox === 'function') window.fetchInbox();
+        }
+
+        const approvalForm = document.getElementById('admin-form-approval');
+        const saveBtn = document.querySelector('button[onclick="prepareDatabaseExport()"]');
+
+        if (data.status === 'pending') {
+            if (user === 'vedouci' && saveBtn) saveBtn.style.display = 'none';
+
+            if (user === 'vedeni') {
+                const mainTitle = document.querySelector('#omega-admin-portal h2');
+                if (mainTitle) mainTitle.innerHTML = '🛡️ Audit maturitního seznamu';
+                if (approvalForm) approvalForm.style.display = 'flex';
+                const emptyState = document.getElementById('vedeni-empty-state');
+                if (emptyState) emptyState.style.display = 'none';
+
+                document.getElementById('approval-info').innerHTML = `
+                    <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">
+                        <span>Vypracoval(a): <strong style="color: var(--text-main);">${sanitize(data.author)}</strong></span>
+                        <span>📅 ${data.date}</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); border-left: 3px solid var(--accent-primary); padding: 10px 15px; font-style: italic; color: var(--text-main); border-radius: 0 4px 4px 0;">
+                        "${sanitize(data.commitMsg)}"
+                    </div>
+                `;
+                if (data.payload) {
+                    const jsonMatch = data.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+                    if (jsonMatch) {
+                        window.DRAFT_KNIHY_DB = JSON.parse(jsonMatch[1]);
+                        if (typeof renderDraftDiff === 'function') renderDraftDiff(window.DRAFT_KNIHY_DB);
+                    }
+                }
+            }
+        } else {
+            window.DRAFT_KNIHY_DB = null;
+            if (user !== 'vedeni' && saveBtn) saveBtn.style.display = 'block';
+
+            if (user === 'vedeni') {
+                if (approvalForm) approvalForm.style.display = 'none';
+                let emptyState = document.getElementById('vedeni-empty-state');
+                if (!emptyState) {
+                    emptyState = document.createElement('div');
+                    emptyState.id = 'vedeni-empty-state';
+                    emptyState.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: rgba(52, 152, 219, 0.05); border: 1px dashed var(--accent-primary-light); border-radius: 8px; margin-bottom: 20px;">
+                        <div style="font-size: 2.5rem; margin-bottom: 10px; opacity: 0.8;">☕</div>
+                        <h3 style="margin: 0 0 5px 0; color: var(--accent-primary);">Vše je aktuální</h3>
+                        <p style="margin: 0; font-size: 0.9rem;">Momentálně nečekají žádné návrhy komise na schválení.</p>
+                    </div>`;
+                    approvalForm.parentNode.insertBefore(emptyState, approvalForm);
+                }
+                emptyState.style.display = 'block';
+            }
+        }
+    } catch (e) {}
 };
