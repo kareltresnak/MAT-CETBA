@@ -1,66 +1,45 @@
-﻿# 📂 Academic & Software Projects
+﻿# 📂 Academic & Software Projects (OMEGA Suite)
 
-Professional portfolio of informatics projects focused on automation, secure distributed architectures, and cryptographic validation.
+Profesionální portfolio projektů zaměřených na distribuované systémy, kryptografickou validaci a pokročilou algoritmizaci.
 
 ---
 
-## 📚 OMEGA: Distributed Examination Canon Suite (v7.6.0 Zero-Trust Edge)
+## 📚 OMEGA: Distribuovaný asynchronní ekosystém (v9.0.0)
 
 **Live Demos:** 
-* [🏛️ Institutional Edition (SPŠPB)](https://kareltresnak.github.io/MAT-CETBA/?theme=spspb) – Full institutional branding; persistent UI anchor.
-* [🦀 Rust Edition](https://kareltresnak.github.io/MAT-CETBA/?theme=default) – High-contrast "Rust" aesthetic; branding-on-demand. <br>
+* [🏛️ Institucionální Edice (SPŠPB)](https://kareltresnak.github.io/MAT-CETBA/?theme=spspb) – Plný branding; persistentní UI kotva.
+* [🦀 Rust Edition](https://kareltresnak.github.io/MAT-CETBA/?theme=default) – High-contrast estetika; branding-on-demand.
 
-**Repository:** [📂 Source Code](https://github.com/kareltresnak/MAT-CETBA)
+**Repozitář:** [📂 Zdrojový kód](https://github.com/kareltresnak/MAT-CETBA)
 
-**Target:** High-density institutional networks (SPŠ a VOŠ Příbram)
+OMEGA v9.0.0 není pouhým generátorem seznamů; je to **kolaborativní platforma s 3-Way Merge enginem**, postavená na distribuované infrastruktuře (PWA + Cloudflare Workers). Verze 9.0.0 integruje pokročilou teorii grafů pro synchronizaci dat mezi více editory bez rizika kolize.
 
-Originally a localized protocol generator, OMEGA has been architecturally elevated into a **high-availability, serverless suite utilizing distributed edge infrastructure (PWA + Cloudflare Workers)**. The v7.6.0 release introduces a Zero-Trust Edge Gateway, mathematically mitigating L7 volumetric attacks and ensuring strict memory sanitization.
+### 🏛️ Architektura a Algoritmizace (LIS Engine)
 
-### 🛡️ Core Security Architecture & Edge Gateway
+* **Detekce změn pomocí LIS (Longest Increasing Subsequence):** Pro vizualizaci rozdílů (Diff) v databázi nevyužíváme naivní porovnávání indexů. Implementovali jsme algoritmus nejdelší rostoucí podposloupnost v čase $\mathcal{O}(N^2)$, který matematicky rozlišuje mezi **manuálním přesunem děl** (žlutý příznak) a **kaskádovým posunem ID** způsobeným okolními změnami (modrý příznak).
+* **3-Way Merge & Conflict Resolver:** Systém umožňuje asynchronní slučování cizích návrhů do rozpracovaného editoru. V případě konfliktu (shodná díla na různých pozicích) se aktivuje interaktivní Mergetool, který vynutí manuální rozlišení kolidujících vektorů.
+* **Dual-Track Auditing (Smart Changelog):** Historie změn je rozdělena na systémové aktualizace (`dev`) a databázové revize (`db`). Každá schválená změna v seznamu děl automaticky generuje datový snapshot (počty změn + autorizace), čímž zaručuje 100% auditní integritu.
 
-* **L7 Volumetric DDoS Mitigation (Proof-of-Work):** The perimeter is secured by an asymmetric cryptographic challenge (Cloudflare Turnstile) running in a quantum superposition state (Stealth Mode). It shifts the computational cost entirely to the attacker ($E_{attack} \gg E_{defense}$). The Worker drops unverified payloads in $\mathcal{O}(1)$ time before I/O execution.
-* **Replay Attack Immunity:** Transport layer strictly enforces single-use token burning. Any network failure or state desynchronization automatically triggers a local node reset, rendering intercepted payloads mathematically useless.
-* **Asymmetric Device Fingerprinting:** To mitigate "Friendly Fire" in institutional NAT environments, the stateful lockout bypasses transport-layer headers entirely. It utilizes client-side CSPRNG (Web Crypto API) to generate a 256-bit entropy vector, persisted locally and verified at the Edge: $Hash(E_{client})$. 
-* **Supply Chain Integrity:** External CDNs are mathematically locked using **Subresource Integrity (SRI)** with Base64 encoded SHA-384/SHA-512 cryptographic hashes, eliminating on-the-fly execution mutations.
-* **Stored XSS Sanitization & Schema Validation:** Strict edge-side schema parsing prevents payload bloat (Resource Exhaustion). All DOM insertions are aggressively sanitized, neutralizing client-side injection vectors.
+### 🛡️ Bezpečnostní protokoly Edge Gateway
 
-### 🎨 Frontend Engineering & Print Topology
-
-* **Anti-Fracture Print Engine:** A highly deterministic geometric protocol. CSS `break-inside: avoid` directives and strict A4 spatial boundaries ensure 100% structural integrity during PDF compilation, completely eliminating "Orphan Headers" and row fractures.
-* **Hybrid Session Decay (HUD-to-Modal):** Engineered a graduated escalation system for session security based on elapsed idle time. Features a glassmorphic Modal takeover with a 1Hz kinematic countdown and hardware-accelerated critical pulse animations.
-* **Stateful Database Integrity:** A robust polynomial **String-Hashing protocol** detects memory mutations and prevents cross-version data corruption in offline `LocalStorage`.
+* **L7 Volumetric DDoS Mitigation:** Perimetr je zajištěn asymetrickou výzvou (Cloudflare Turnstile). Náklady na výpočetní výkon jsou přeneseny na stranu útočníka ($E_{attack} \gg E_{defense}$).
+* **Asymetrický Device Fingerprinting:** K ochraně proti brute-force útokům v NAT prostředí využíváme klientský CSPRNG (Web Crypto API), který generuje 256-bitový entropický vektor: $Hash(E_{client})$.
+* **Optimistic Concurrency Control (OCC):** Ochrana proti "Lost Update" problému pomocí polynomiálního hashování stavu. Commit je přijat pouze tehdy, pokud se kontrolní součet klienta shoduje se snapshotem na serveru.
 
 ---
 
-## 🔬 Technical Appendix: Architectural Deep-Dive (v7.6.0)
+## 🔬 Technický Appendix: Algoritmický Deep-Dive
 
-### 1. The Zero-Trust Edge Gateway Equation
-The Cloudflare Worker functions as a strict border gateway. A commit sequence is permitted only if it satisfies the Boolean intersection of Biometric Validation $V(T)$, Cryptographic Auth $A(P)$, and Schema Integrity $S(D)$:
+### 1. Matematické určení kaskádových přesunů
+K identifikaci prvků, které zůstaly v "páteřním pořadí", využíváme dynamické programování:
+$$L[i] = 1 + \max \{L[j] \mid 0 \le j < i, \, origId[j] < origId[i] \}$$
+Prvky, které nejsou součástí vypočtené množiny $L_{max}$, jsou označeny jako "Manually Moved".
 
-$$f_{gateway}(req) = \begin{cases} \text{Execute GitHub PUT} & \text{if } V(T) \land A(P) \land S(D) \\ \text{Drop (HTTP 403)} & \text{otherwise} \end{cases}$$
-
-### 2. Temporal State Machine: Hybrid Session Decay
-OMEGA implements a three-phase Finite State Machine (FSM) to eliminate "zombie sessions":
-
+### 2. Stavový automat sezení (Hybrid Decay)
 $$S(t) = 
 \begin{cases} 
-\text{Invisible} & \text{for } t < 10s \\
-\text{HUD-Warning} & \text{for } 10s \le t < 240s \\
-\text{Modal-Takeover} & \text{for } 240s \le t < 300s \\
-\text{Termination} & \text{for } t \ge 300s 
+\text{Transparentní} & \text{pro } t < 10s \\
+\text{HUD-Varování} & \text{pro } 10s \le t < 240s \\
+\text{Modal-Takeover} & \text{pro } 240s \le t < 300s \\
+\text{Terminace} & \text{pro } t \ge 300s 
 \end{cases}$$
-
-### 3. Data Integrity & State Management
-The system utilizes a lightweight string-hashing algorithm to monitor the integrity of the institutional database. 
-
-```javascript
-function generateDbHash(db) {
-    const str = db.map(k => k.id + k.dilo).join('|');
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash |= 0; 
-    }
-    return hash.toString(36);
-}
-```

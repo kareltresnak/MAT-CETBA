@@ -1185,10 +1185,15 @@ window.analyzeDraftChanges = function(draftDb) {
     const prodDb = window.OMEGA_CONFIG.KNIHY_DB.map((k, i) => ({...k, id: i + 1}));
 
     let draftMapped = draftDb.map((draftBook, idx) => {
+        // 1. Zkusíme exaktní shodu jména
         let prodMatch = prodDb.find(p => p.dilo.toLowerCase().trim() === draftBook.dilo.toLowerCase().trim());
-        if (!prodMatch && draftBook._original) {
-            prodMatch = prodDb.find(p => p.id === draftBook._original.id);
+        
+        // 2. 🚀 OMEGA DNA FALLBACK: Pokud učitel přepsal název, spárujeme bezpečně přes DNA stopu
+        if (!prodMatch) {
+            const targetId = draftBook.origId || (draftBook._original ? draftBook._original.id : draftBook.id);
+            prodMatch = prodDb.find(p => p.id === targetId);
         }
+
         return {
             ...draftBook,
             draftIndex: idx + 1,
@@ -2883,14 +2888,20 @@ window.prepareDatabaseExport = async function() {
 
     adminVirtualDb.forEach(book => {
         if (!book._isDeleted) {
+            book._finalId = counter; // 🚀 INJEKCE PRO DETAILNÍ AUDIT LOG
             newDb.push({
-                id: counter++, dilo: sanitize(book.dilo), autor: sanitize(book.autor),
-                druh: book.druh, obdobi: book.obdobi
+                id: counter++,
+                origId: book.origId || (book._original ? book._original.id : book.id),
+                dilo: sanitize(book.dilo), 
+                autor: sanitize(book.autor),
+                druh: book.druh, 
+                obdobi: book.obdobi
             });
         }
     });
 
-    const formattedDbString = "[\n" + newDb.map(book => `{ "id": ${book.id}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n') + "\n    ]";
+    // 🚀 Aplikace DNA stopy do finálního JSONu
+    const formattedDbString = "[\n" + newDb.map(book => `{ "id": ${book.id}, "origId": ${book.origId}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n') + "\n    ]";
     const today = new Date().toLocaleDateString('cs-CZ');
 
     const modal = document.getElementById('omega-confirm-modal');
@@ -2954,9 +2965,55 @@ window.prepareDatabaseExport = async function() {
             return; 
         }
 
-        // Automatický zápis učitelské změny do historie
+        // 🚀 OMEGA SMART AUDIT v3: Enterprise Grid Formatting & No Comments
+        let notes = [];
+
+        // CSS Grid formátovač (Dokonalé lícování sloupců)
+        const formatBook = (id, k) => `
+            <div style="display: grid; grid-template-columns: 55px 3fr 2.5fr 1fr 1.5fr; gap: 10px; align-items: center; width: 100%;">
+                <strong style="color: var(--accent-primary-light);">ID ${id}</strong>
+                <span style="font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sanitize(k.dilo)}</span>
+                <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sanitize(k.autor)}</span>
+                <span style="color: var(--text-muted); font-size: 0.9em;">${k.druh}</span>
+                <span style="color: var(--text-muted); font-size: 0.9em; text-align: right;">${MAPA_OBDOBI[k.obdobi] || k.obdobi}</span>
+            </div>`;
+
+        const added = adminVirtualDb.filter(k => k._isAdded && !k._isDeleted);
+        if (added.length > 0) {
+            let html = `<strong style="color: #10b981; display: block; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 0.5px;">➕ PŘIDÁNY:</strong><div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;">`;
+            added.sort((a,b) => a._finalId - b._finalId).forEach(k => {
+                html += `<div style="padding: 8px 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 6px;">${formatBook(k._finalId, k)}</div>`;
+            });
+            html += `</div>`;
+            notes.push(html);
+        }
+
+        const deleted = adminVirtualDb.filter(k => k._isDeleted && !k._isAdded);
+        if (deleted.length > 0) {
+            let html = `<strong style="color: #ef4444; display: block; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 0.5px;">🗑️ ODEBRÁNY:</strong><div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;">`;
+            deleted.sort((a,b) => a._original.id - b._original.id).forEach(k => {
+                html += `<div style="padding: 8px 12px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 6px; opacity: 0.6; text-decoration: line-through;">${formatBook(k._original.id, k._original)}</div>`;
+            });
+            html += `</div>`;
+            notes.push(html);
+        }
+
+        const edited = adminVirtualDb.filter(k => k._isEdited && !k._isDeleted);
+        if (edited.length > 0) {
+            let html = `<strong style="color: #f59e0b; display: block; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 0.5px;">✏️ UPRAVENY / PŘESUNUTY:</strong><div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;">`;
+            edited.sort((a,b) => a._finalId - b._finalId).forEach(k => {
+                html += `<div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 6px;">${formatBook(k._finalId, k)}</div>`;
+            });
+            html += `</div>`;
+            notes.push(html);
+        }
+
+        const appVerEl = document.getElementById('app-version-val');
+        const appVer = appVerEl ? appVerEl.textContent : 'v9.0.2';
+
+        // Zápis do lokální instance changelogu (Komentář už neukládáme jako vizuální prvek)
         adminChangelogDb.unshift({
-            type: 'db', version: 'Aktualizace databáze', date: today, notes: [customMsg]
+            type: 'db', version: `Revize databáze (${appVer})`, date: today, notes: notes
         });
 
         const finalExportPayload = `// =====================================================================
@@ -3018,7 +3075,8 @@ window.prepareChangelogExport = async function() {
 
     // 🚀 Použijeme originální databázi knih (žádné mutace)
     const currentDb = window.OMEGA_CONFIG.KNIHY_DB;
-    const formattedDbString = "[\n" + currentDb.map(book => `{ "id": ${book.id}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n') + "\n    ]";
+    // 🚀 Aplikace DNA stopy do finálního JSONu
+    const formattedDbString = "[\n" + newDb.map(book => `{ "id": ${book.id}, "origId": ${book.origId}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n') + "\n    ]";
     const today = new Date().toLocaleDateString('cs-CZ');
 
     const finalExportPayload = `// =====================================================================
@@ -3479,48 +3537,52 @@ window.addEventListener('afterprint', () => {
     console.log("🧹 Tisková paměť byla úspěšně vyčištěna.");
 });
 
-// --- 📄 CHANGELOG ENGINE (Dual-Tab Edition) ---
+// --- 📄 CHANGELOG ENGINE (Tri-Tab Edition) ---
 
 window.switchPublicChangelog = function(tab) {
-    document.getElementById('changelog-content-dev').style.display = tab === 'dev' ? 'block' : 'none';
-    document.getElementById('changelog-content-db').style.display = tab === 'db' ? 'block' : 'none';
+    const tabs = ['dev', 'features', 'db'];
     
-    document.getElementById('tab-pub-dev').style.color = tab === 'dev' ? 'var(--accent-primary)' : 'var(--text-muted)';
-    document.getElementById('tab-pub-dev').style.borderBottomColor = tab === 'dev' ? 'var(--accent-primary)' : 'transparent';
-    document.getElementById('tab-pub-dev').style.opacity = tab === 'dev' ? '1' : '0.6';
-
-    document.getElementById('tab-pub-db').style.color = tab === 'db' ? 'var(--accent-primary)' : 'var(--text-muted)';
-    document.getElementById('tab-pub-db').style.borderBottomColor = tab === 'db' ? 'var(--accent-primary)' : 'transparent';
-    document.getElementById('tab-pub-db').style.opacity = tab === 'db' ? '1' : '0.6';
+    tabs.forEach(t => {
+        const content = document.getElementById(`changelog-content-${t}`);
+        const btn = document.getElementById(`tab-pub-${t}`);
+        
+        if (content) content.style.display = (tab === t) ? 'block' : 'none';
+        if (btn) {
+            btn.style.color = (tab === t) ? 'var(--accent-primary)' : 'var(--text-muted)';
+            btn.style.borderBottomColor = (tab === t) ? 'var(--accent-primary)' : 'transparent';
+            btn.style.opacity = (tab === t) ? '1' : '0.6';
+        }
+    });
 };
 
 window.openChangelog = function() {
     const modal = document.getElementById('omega-changelog-modal');
-    const devCont = document.getElementById('changelog-content-dev');
-    const dbCont = document.getElementById('changelog-content-db');
+    const dbData = window.OMEGA_CONFIG.CHANGELOG_DB || [];
     
-    let dbData = window.OMEGA_CONFIG.CHANGELOG_DB || [];
-    
-    // Generátor HTML bloku
+    // Generátor HTML bloku (podporuje HTML v textu, např. <img> tagy)
     const renderHtml = (items) => items.map(entry => `
         <div style="margin-bottom: 20px; background: var(--bg-base); padding: 15px; border-radius: 6px; border-left: 3px solid var(--accent-primary-light);">
             <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                 <span>${sanitize(entry.version)} <span style="font-size: 0.75rem; opacity: 0.6; font-weight: normal; margin-left: 10px; color: var(--text-muted);">${sanitize(entry.date)}</span></span>
             </h3>
-            <ul style="color: var(--text-muted); padding-left: 20px; margin: 0;">
-                ${entry.notes.map(n => `<li>${sanitize(n)}</li>`).join('')}
+            <ul style="color: var(--text-muted); padding-left: 20px; margin: 0; line-height: 1.5;">
+                ${entry.notes.map(n => `<li style="margin-bottom: 5px;">${n}</li>`).join('')}
             </ul>
         </div>
     `).join('') || '<div style="color: var(--text-muted); font-style: italic; text-align: center; padding: 20px;">Zatím žádné záznamy v této kategorii.</div>';
 
-    // Filtrace a Vykreslení
+    // Filtrace
+    const devCont = document.getElementById('changelog-content-dev');
+    const featCont = document.getElementById('changelog-content-features');
+    const dbCont = document.getElementById('changelog-content-db');
+
     // Fallback: Pokud starý záznam nemá 'type', spadne do 'dev'
     if (devCont) devCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'dev' || !i.type)); 
+    if (featCont) featCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'features'));
     if (dbCont) dbCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'db'));
 
-    switchPublicChangelog('dev'); // Výchozí záložka
+    switchPublicChangelog('features'); // 🚀 OMEGA UX: Výchozí záložka při otevření ať jsou "Novinky"
     if (modal) modal.style.display = 'flex';
-    if (typeof trackOmegaEvent === 'function') trackOmegaEvent('Changelog_Opened');
 };
 
 window.closeChangelog = function() {
@@ -3530,14 +3592,14 @@ window.closeChangelog = function() {
 
 // --- ADMIN CHANGELOG ENGINE ---
 window.adminAddChangelogEntry = function() {
+    const type = document.getElementById('ch-type').value;
     const ver = document.getElementById('ch-version').value.trim();
     const dat = document.getElementById('ch-date').value.trim();
     const notes = document.getElementById('ch-notes').value.split('\n').filter(l => l.trim() !== "");
 
     if (!ver || !dat || notes.length === 0) return showToast("⚠️ Vyplňte kompletní údaje o verzi a poznámky.");
 
-    // 🚀 OMEGA FIX: Nativně uzamčeno na vývojářský log ('dev')
-    adminChangelogDb.unshift({ type: 'dev', version: ver, date: dat, notes: notes });
+    adminChangelogDb.unshift({ type: type, version: ver, date: dat, notes: notes });
     
     renderAdminChangelog();
     showToast("📄 Záznam přidán (nezapomeňte Uložit databázi).");
@@ -3548,10 +3610,13 @@ window.adminAddChangelogEntry = function() {
 window.renderAdminChangelog = function() {
     const cont = document.getElementById('admin-changelog-preview');
     if (!cont) return;
+    
+    const icons = { 'dev': '⚙️', 'features': '🚀', 'db': '📚' };
+    
     cont.innerHTML = adminChangelogDb.map((entry, idx) => `
         <div style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-base);">
             <div>
-                <span style="font-size: 1.2em; margin-right: 8px;">${entry.type === 'db' ? '📚' : '⚙️'}</span>
+                <span style="font-size: 1.2em; margin-right: 8px;">${icons[entry.type] || '⚙️'}</span>
                 <strong>${sanitize(entry.version)}</strong> <span style="opacity: 0.6; font-size: 0.85em;">(${sanitize(entry.date)})</span>
             </div>
             <button onclick="adminDeleteChangelog(${idx})" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; padding: 5px;">🗑️</button>
@@ -4048,6 +4113,151 @@ window.confirmInboxMerge = async function() {
     } catch (err) {
         showToast("❌ Chyba při převzetí: " + err.message);
     }
+};
+
+// 🚀 OMEGA MERGE ENGINE: Třícestné slučování s řešením konfliktů
+window.PENDING_MERGE_ANALYSIS = null;
+window.PENDING_MERGE_MSG_ID = null;
+
+window.mergeInboxIdea = async function() {
+    try {
+        const msgId = document.getElementById('preview-idea-msg-id').value;
+        const msg = window.OMEGA_INBOX_CACHE.find(m => m.id === msgId);
+        if (!msg) throw new Error("Zpráva nenalezena v paměti.");
+
+        let draftDb;
+        const jsonMatch = msg.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+        draftDb = jsonMatch ? JSON.parse(jsonMatch[1]) : JSON.parse(msg.payload);
+
+        // Analýza pomocí našeho LIS Enginu
+        const analysis = window.analyzeDraftChanges(draftDb);
+
+        // Pokud kolega něco ručně přesunul nebo přepsal, musíme vyvolat Conflict Resolver
+        if (analysis.manuallyMoved.length > 0 || analysis.edited.length > 0) {
+            window.PENDING_MERGE_ANALYSIS = analysis;
+            window.PENDING_MERGE_MSG_ID = msgId;
+            renderConflictUI(analysis);
+            return; // Slučování se pozastaví, čekáme na výběr uživatele
+        }
+
+        // Pokud jde jen o čisté přidání/smazání bez konfliktů, provedeme Fast-Forward Merge
+        window.PENDING_MERGE_ANALYSIS = analysis;
+        window.PENDING_MERGE_MSG_ID = msgId;
+        executeResolvedMerge(true); 
+
+    } catch (err) {
+        showToast("❌ Chyba při čtení dat: " + err.message);
+    }
+};
+
+window.renderConflictUI = function(analysis) {
+    const container = document.getElementById('conflict-items-container');
+    let html = '';
+
+    const createRadioUI = (type, bookId, labelLocal, labelIncoming, desc, title) => `
+        <div class="conflict-item" style="background: var(--bg-base); border: 1px solid var(--border); padding: 15px; border-radius: 8px;">
+            <strong style="color: var(--text-main); font-size: 1.05rem;">${sanitize(title)}</strong> <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 5px;">(${desc})</span>
+            <div style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <label style="flex: 1; min-width: 200px; cursor: pointer; padding: 10px; border: 1px solid #10b981; border-radius: 6px; display: flex; align-items: center; gap: 10px; background: rgba(16, 185, 129, 0.05);" onclick="this.parentElement.querySelectorAll('label').forEach(l=>{l.style.borderColor='var(--border)'; l.style.background='transparent'}); this.style.borderColor='#10b981'; this.style.background='rgba(16, 185, 129, 0.05)';">
+                    <input type="radio" name="${type}_${bookId}" value="local" checked>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">${labelLocal}</span>
+                </label>
+                <label style="flex: 1; min-width: 200px; cursor: pointer; padding: 10px; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; gap: 10px;" onclick="this.parentElement.querySelectorAll('label').forEach(l=>{l.style.borderColor='var(--border)'; l.style.background='transparent'}); this.style.borderColor='#f59e0b'; this.style.background='rgba(245, 158, 11, 0.05)';">
+                    <input type="radio" name="${type}_${bookId}" value="incoming">
+                    <span style="font-size: 0.85rem; color: #f59e0b;">${labelIncoming}</span>
+                </label>
+            </div>
+        </div>`;
+
+    // Vykreslení přesunů (Žlutá osa LIS)
+    analysis.manuallyMoved.forEach(book => {
+        const localBook = adminVirtualDb.find(b => !b._isDeleted && b._original && b._original.id === book.prodMatch.id);
+        const localPos = localBook ? localBook.id : 'Smazáno';
+        html += createRadioUI('move', book.prodMatch.id, `Ponechat mou pozici (${localPos}.)`, `Převzít pozici kolegy (${book.draftIndex}.)`, 'Kolidující přesun', book.dilo);
+    });
+
+    // Vykreslení textových úprav
+    analysis.edited.forEach(book => {
+        html += createRadioUI('edit', book.prodMatch.id, `Ponechat můj text`, `Převzít text kolegy`, 'Kolidující úprava textu', book.dilo);
+    });
+
+    container.innerHTML = html;
+    document.getElementById('omega-conflict-modal').style.display = 'flex';
+};
+
+// Finální exekuce (Po kliknutí na "Dokončit sloučení")
+window.executeResolvedMerge = function(isFastForward = false) {
+    const analysis = window.PENDING_MERGE_ANALYSIS;
+    let changesCount = 0;
+    let acceptedMoves = []; // Fyzické přesuny v paměti
+
+    // 1. Přidání nových děl
+    analysis.added.forEach(incomingBook => {
+        const exists = adminVirtualDb.find(b => !b._isDeleted && b.dilo.toLowerCase().trim() === incomingBook.dilo.toLowerCase().trim());
+        if (!exists) {
+            adminVirtualDb.push({
+                ...incomingBook,
+                id: adminVirtualDb.length + 1, 
+                _isDeleted: false, _isAdded: true, _isEdited: false,
+                _uid: Math.random().toString(36).substr(2, 9), _original: null
+            });
+            changesCount++;
+        }
+    });
+
+    // 2. Aplikace smazaných děl
+    analysis.deleted.forEach(delBook => {
+        const target = adminVirtualDb.find(b => !b._isDeleted && b._original && b._original.id === delBook.id);
+        if (target) { target._isDeleted = true; changesCount++; }
+    });
+
+    // 3. Rozhodnutí z modálu (Pokud není Fast-Forward)
+    if (!isFastForward) {
+        analysis.manuallyMoved.forEach(book => {
+            const choice = document.querySelector(`input[name="move_${book.prodMatch.id}"]:checked`).value;
+            if (choice === 'incoming') acceptedMoves.push({ prodId: book.prodMatch.id, targetIndex: book.draftIndex - 1 });
+        });
+
+        analysis.edited.forEach(edBook => {
+            const choice = document.querySelector(`input[name="edit_${edBook.prodMatch.id}"]:checked`).value;
+            if (choice === 'incoming') {
+                const target = adminVirtualDb.find(b => !b._isDeleted && b._original && b._original.id === edBook.prodMatch.id);
+                if (target) {
+                    target.dilo = edBook.dilo; target.autor = edBook.autor; target.obdobi = edBook.obdobi; target.druh = edBook.druh;
+                    changesCount++;
+                }
+            }
+        });
+    }
+
+    // 4. Aplikace odsouhlasených posunů (Vyjmutí a vložení na nový index v poli)
+    acceptedMoves.sort((a,b) => a.targetIndex - b.targetIndex).forEach(m => {
+        const currentIndex = adminVirtualDb.findIndex(b => b._original && b._original.id === m.prodId);
+        if (currentIndex > -1) {
+            const item = adminVirtualDb.splice(currentIndex, 1)[0];
+            adminVirtualDb.splice(m.targetIndex, 0, item);
+            changesCount++;
+        }
+    });
+
+    // 5. Rekalibrace UI a barviček
+    if (typeof window.adminEvaluateChanges === 'function') window.adminEvaluateChanges();
+    if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
+    if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
+
+    // 6. Úklid
+    document.getElementById('omega-conflict-modal').style.display = 'none';
+    document.getElementById('omega-idea-preview-modal').style.display = 'none';
+    document.getElementById('omega-inbox-modal').style.display = 'none';
+    document.getElementById('omega-starred-modal').style.display = 'none';
+
+    showToast(`✅ Sloučení úspěšné (${changesCount} provedených změn).`);
+
+    // Potvrzení serveru
+    fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/accept", {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+        body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: window.PENDING_MERGE_MSG_ID })
+    }).catch(e => {});
 };
 
 window.openIdeaRejectModal = function(id) {
