@@ -3559,15 +3559,16 @@ window.openChangelog = function() {
     const modal = document.getElementById('omega-changelog-modal');
     const dbData = window.OMEGA_CONFIG.CHANGELOG_DB || [];
     
-    // Generátor HTML bloku (podporuje HTML v textu, např. <img> tagy)
+    // 🚀 OMEGA FIX: Dynamický render (Vývoj má odrážky, DB má čisté Grid bloky)
     const renderHtml = (items) => items.map(entry => `
         <div style="margin-bottom: 20px; background: var(--bg-base); padding: 15px; border-radius: 6px; border-left: 3px solid var(--accent-primary-light);">
             <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                 <span>${sanitize(entry.version)} <span style="font-size: 0.75rem; opacity: 0.6; font-weight: normal; margin-left: 10px; color: var(--text-muted);">${sanitize(entry.date)}</span></span>
             </h3>
-            <ul style="color: var(--text-muted); padding-left: 20px; margin: 0; line-height: 1.5;">
-                ${entry.notes.map(n => `<li style="margin-bottom: 5px;">${n}</li>`).join('')}
-            </ul>
+            ${entry.type === 'db' 
+                ? `<div style="color: var(--text-main); margin-top: 15px;">${entry.notes.join('')}</div>`
+                : `<ul style="color: var(--text-muted); padding-left: 20px; margin: 0; line-height: 1.5;">${entry.notes.map(n => `<li style="margin-bottom: 5px;">${n}</li>`).join('')}</ul>`
+            }
         </div>
     `).join('') || '<div style="color: var(--text-muted); font-style: italic; text-align: center; padding: 20px;">Zatím žádné záznamy v této kategorii.</div>';
 
@@ -3576,12 +3577,18 @@ window.openChangelog = function() {
     const featCont = document.getElementById('changelog-content-features');
     const dbCont = document.getElementById('changelog-content-db');
 
-    // Fallback: Pokud starý záznam nemá 'type', spadne do 'dev'
     if (devCont) devCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'dev' || !i.type)); 
     if (featCont) featCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'features'));
     if (dbCont) dbCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'db'));
 
-    switchPublicChangelog('features'); // 🚀 OMEGA UX: Výchozí záložka při otevření ať jsou "Novinky"
+    // Všechny taby jsou veřejně přístupné
+    const tabDev = document.getElementById('tab-pub-dev');
+    const tabFeat = document.getElementById('tab-pub-features');
+    if (tabDev) tabDev.style.display = 'inline-block';
+    if (tabFeat) tabFeat.style.display = 'inline-block';
+
+    switchPublicChangelog('features'); 
+
     if (modal) modal.style.display = 'flex';
 };
 
@@ -3660,16 +3667,25 @@ window.toggleTruckTracker = function() {
 };
 
 function updateDeliveryTruck(status, feedback = "") {
-    // 🚀 OMEGA FIX: Pokud se změní stav (např. z pending na rejected), resetujeme paměť a Tracker znovu vyskočí
+    // 🚀 OMEGA FIX: Pokud Radar hlásí prázdno, ale my zrovna ukazujeme finální stav,
+    // ignorujeme to, dokud uživatel dodávku sám nezavře křížkem.
+    if ((!status || status === 'idle') && 
+        (window.LAST_SEEN_TRUCK_STATUS === 'accepted' || window.LAST_SEEN_TRUCK_STATUS === 'rejected') && 
+        !window.OMEGA_TRACKER_DISMISSED) {
+        return;
+    }
+
     if (window.LAST_SEEN_TRUCK_STATUS !== status) {
         window.OMEGA_TRACKER_DISMISSED = false;
         window.LAST_SEEN_TRUCK_STATUS = status;
     }
 
-    // Pokud uživatel tento konkrétní stav už zavřel, vyhneme se překreslení
-    if (window.OMEGA_TRACKER_DISMISSED) return;
-
     const tracker = document.getElementById('omega-truck-tracker');
+    if (window.OMEGA_TRACKER_DISMISSED) {
+        if (tracker) tracker.style.display = 'none';
+        return;
+    }
+
     const line = document.getElementById('truck-progress-line');
     const truck = document.getElementById('truck-icon');
     const statusText = document.getElementById('truck-status-text');
@@ -3698,7 +3714,7 @@ function updateDeliveryTruck(status, feedback = "") {
         line.style.width = '63%'; 
         line.style.background = '#f59e0b';
         truck.style.left = '65%'; 
-        truck.innerText = "🚚";
+        truck.innerText = "🚚"; // Čistá dodávka
         truck.style.transform = "translateX(-50%) scaleX(-1)"; 
         
         activateStop('stop-1', '#f59e0b'); activateStop('stop-2', '#f59e0b'); activateStop('stop-3', '#f59e0b');
@@ -3711,11 +3727,30 @@ function updateDeliveryTruck(status, feedback = "") {
         
         line.style.width = '0%';
         line.style.background = '#ef4444';
-        truck.style.left = '12%'; 
-        truck.innerText = "🚐💨"; 
+        // 🚀 Změněno z 12% na 7%, aby byla blíž u startu
+        truck.style.left = '7%'; 
+        truck.innerText = "🚐💨"; // Výfuk ponechán
         truck.style.transform = "translateX(-50%) scaleX(1)"; 
         
         activateStop('stop-1', '#ef4444');
+    }
+    else if (status === 'accepted') {
+        tracker.style.display = 'block';
+        tracker.style.borderColor = 'var(--accent-green)';
+        statusText.innerHTML = `✅ Publikováno! <span style="font-weight: normal; color: var(--text-main);">"${sanitize(feedback)}"</span>`;
+        statusText.style.color = "var(--accent-green)";
+        
+        line.style.width = '100%'; 
+        line.style.background = 'var(--accent-green)';
+        truck.style.left = '94%'; 
+        // 🚀 Odebrána hvězdička
+        truck.innerText = "🚚"; 
+        truck.style.transform = "translateX(-50%) scaleX(-1)"; 
+        
+        activateStop('stop-1', 'var(--accent-green)'); 
+        activateStop('stop-2', 'var(--accent-green)'); 
+        activateStop('stop-3', 'var(--accent-green)');
+        activateStop('stop-4', 'var(--accent-green)');
     }
     else {
         tracker.style.display = 'none';
@@ -4106,9 +4141,10 @@ window.confirmInboxMerge = async function() {
         document.getElementById('omega-starred-modal').style.display = 'none';
         showToast("✅ Nápad byl převzat do vašeho editoru.");
         
+        const feedbackMsg = document.getElementById('accept-idea-msg') ? document.getElementById('accept-idea-msg').value.trim() : "";
         fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/accept", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: msgId })
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: msgId, feedback: feedbackMsg })
         });
     } catch (err) {
         showToast("❌ Chyba při převzetí: " + err.message);
@@ -4254,9 +4290,10 @@ window.executeResolvedMerge = function(isFastForward = false) {
     showToast(`✅ Sloučení úspěšné (${changesCount} provedených změn).`);
 
     // Potvrzení serveru
+    const feedbackMsg = document.getElementById('accept-idea-msg') ? document.getElementById('accept-idea-msg').value.trim() : "";
     fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/accept", {
         method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-        body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: window.PENDING_MERGE_MSG_ID })
+        body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: window.PENDING_MERGE_MSG_ID, feedback: feedbackMsg })
     }).catch(e => {});
 };
 
@@ -4293,7 +4330,8 @@ window.handleDraftAction = function(action) {
 
 window.executeDraftApprove = async function() {
     document.getElementById('omega-approve-modal').style.display = 'none';
-    window.executeDraftApi('/draft/approve', {});
+    const feedbackMsg = document.getElementById('approve-draft-msg') ? document.getElementById('approve-draft-msg').value.trim() : "";
+    window.executeDraftApi('/draft/approve', { feedback: feedbackMsg });
 };
 
 window.executeDraftApi = async function(endpoint, extraData) {
@@ -4350,46 +4388,55 @@ window.checkSystemStatus = async function() {
         const data = await res.json();
         const user = sessionCredentials.username.toLowerCase();
         
+        let visualStatus = data.status;
+        let visualFeedback = data.feedback;
+
         if (data.userFeedback) {
-            let feedbackBanner = document.getElementById('user-feedback-banner');
-            if (!feedbackBanner) {
-                feedbackBanner = document.createElement('div');
-                feedbackBanner.id = 'user-feedback-banner';
-                const mainContent = document.querySelector('#omega-admin-portal > h2');
-                mainContent.parentNode.insertBefore(feedbackBanner, mainContent);
-            }
-            
-            let rejectedDiff = "Chyba analýzy";
-            try {
-                const jsonMatch = data.userFeedback.originalPayload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
-                if (jsonMatch) rejectedDiff = generateDiffHtml(JSON.parse(jsonMatch[1]));
-            } catch(e) {}
+            visualStatus = data.userFeedback.status; // Nastaví 'accepted' nebo 'rejected'
+            visualFeedback = data.userFeedback.feedback;
 
-            const isAccepted = data.userFeedback.status === 'accepted';
-            const colorMain = isAccepted ? 'var(--accent-green)' : 'var(--accent-red)';
-            const bgMain = isAccepted ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
-            const iconMain = isAccepted ? '✅' : '❌';
-            const titleText = isAccepted ? 'Váš nápad byl přijat katedrou ČJL' : 'Váš návrh byl katedrou ČJL zamítnut';
+            // 🚀 Běžný učitel vidí textový banner (nemá dodávku)
+            if (user !== 'vedouci' && user !== 'omega') {
+                let feedbackBanner = document.getElementById('user-feedback-banner');
+                if (!feedbackBanner) {
+                    feedbackBanner = document.createElement('div');
+                    feedbackBanner.id = 'user-feedback-banner';
+                    const mainContent = document.querySelector('#omega-admin-portal > h2');
+                    mainContent.parentNode.insertBefore(feedbackBanner, mainContent);
+                }
+                
+                let rejectedDiff = "Chyba analýzy";
+                try {
+                    const jsonMatch = data.userFeedback.originalPayload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+                    if (jsonMatch) rejectedDiff = generateDiffHtml(JSON.parse(jsonMatch[1]));
+                } catch(e) {}
 
-            feedbackBanner.innerHTML = `
-                <div style="background: ${bgMain}; border: 1px solid ${colorMain}; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="width: 100%;">
-                        <h4 style="margin: 0 0 10px 0; color: ${colorMain}; font-size: 1.1rem;">${iconMain} ${titleText}</h4>
-                        <div style="font-size: 0.9rem; color: var(--text-main); font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed ${colorMain}; opacity: 0.8;">
-                            Zpětná vazba: "${sanitize(data.userFeedback.feedback)}"
+                const isAccepted = data.userFeedback.status === 'accepted';
+                const colorMain = isAccepted ? 'var(--accent-green)' : 'var(--accent-red)';
+                const bgMain = isAccepted ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                const iconMain = isAccepted ? '✅' : '❌';
+                const titleText = isAccepted ? 'Váš nápad byl přijat' : 'Váš návrh byl zamítnut';
+
+                feedbackBanner.innerHTML = `
+                    <div style="background: ${bgMain}; border: 1px solid ${colorMain}; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="width: 100%;">
+                            <h4 style="margin: 0 0 10px 0; color: ${colorMain}; font-size: 1.1rem;">${iconMain} ${titleText}</h4>
+                            <div style="font-size: 0.9rem; color: var(--text-main); font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed ${colorMain}; opacity: 0.8;">
+                                Zpětná vazba: "${sanitize(data.userFeedback.feedback)}"
+                            </div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; border-left: 2px solid ${colorMain};">
+                                ${rejectedDiff}
+                            </div>
                         </div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px;">Původní zpráva: "${sanitize(data.userFeedback.originalMsg)}"</div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; border-left: 2px solid ${colorMain};">
-                            ${rejectedDiff}
-                        </div>
+                        <button onclick="this.parentNode.parentNode.remove()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; padding: 0 0 0 15px; transition: 0.2s;" onmouseover="this.style.color='${colorMain}'" onmouseout="this.style.color='var(--text-muted)'">×</button>
                     </div>
-                    <button onclick="this.parentNode.parentNode.remove()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; padding: 0 0 0 15px; transition: 0.2s;" onmouseover="this.style.color='${colorMain}'" onmouseout="this.style.color='var(--text-muted)'">×</button>
-                </div>
-            `;
+                `;
+            }
         }
 
+        // 🚀 OMEGA FIX: Tracker vizualizuje stavy pro Vedoucího
         if (user === 'vedouci' || user === 'omega') {
-            updateDeliveryTruck(data.status, data.feedback);
+            updateDeliveryTruck(visualStatus, visualFeedback);
             if (typeof window.fetchInbox === 'function') window.fetchInbox();
         }
 
