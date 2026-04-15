@@ -1259,6 +1259,7 @@ window.analyzeDraftChanges = function(draftDb) {
 };
 
 // 🚀 OMEGA TEXT ENGINE: Výpis do modálů
+// 🚀 OMEGA TEXT ENGINE: Výpis do modálů s DNA stopou
 window.generateDiffHtml = function(draftDb) {
     const analysis = window.analyzeDraftChanges(draftDb);
     let html = "";
@@ -1269,7 +1270,20 @@ window.generateDiffHtml = function(draftDb) {
 
     if (analysis.added.length > 0) html += `<div style="color: var(--accent-green); font-size: 0.85rem;"><strong>➕ Přidáno (${analysis.added.length}):</strong> ${analysis.added.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
     if (analysis.deleted.length > 0) html += `<div style="color: var(--accent-red); font-size: 0.85rem; margin-top: 4px;"><strong>🗑️ Odebráno (${analysis.deleted.length}):</strong> ${analysis.deleted.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
-    if (analysis.edited.length > 0) html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>✏️ Upraven text (${analysis.edited.length}):</strong> ${analysis.edited.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
+    
+    // 🚀 OMEGA FIX: DNA Tracking (Starý název ➔ Nový název)
+    if (analysis.edited.length > 0) {
+        const editedText = analysis.edited.map(k => {
+            const origName = k.prodMatch ? k.prodMatch.dilo : (k._original ? k._original.dilo : "Neznámé");
+            if (origName.toLowerCase().trim() !== k.dilo.toLowerCase().trim()) {
+                return `<strike style="opacity: 0.6;">${sanitize(origName)}</strike> ➔ <strong>${sanitize(k.dilo)}</strong>`;
+            } else {
+                return `<strong>${sanitize(k.dilo)}</strong> (Úprava metadat)`;
+            }
+        }).join('<span style="color:var(--border); margin: 0 5px;">|</span>');
+        html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>✏️ Upraven text (${analysis.edited.length}):</strong> ${editedText}</div>`;
+    }
+
     if (analysis.manuallyMoved.length > 0) html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>↕️ Manuálně přesunuto (${analysis.manuallyMoved.length}):</strong> ${analysis.manuallyMoved.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
     if (analysis.cascadeMoved.length > 0) html += `<div style="color: #3b82f6; font-size: 0.85rem; margin-top: 4px;"><strong>🌊 Kaskádově posunuto:</strong> ${analysis.cascadeMoved.length} děl.</div>`;
     
@@ -3817,6 +3831,7 @@ window.fetchInbox = async function() {
             badge.innerText = unreadCount;
             badge.style.opacity = unreadCount > 0 ? '1' : '0';
         }
+        if (unreadCount > parseInt(badge.innerText)) window.triggerBrowserNotification("Nová pošta!");
         
         renderInboxContent();
     } catch (e) {}
@@ -4394,7 +4409,9 @@ window.checkSystemStatus = async function() {
         if (data.userFeedback) {
             visualStatus = data.userFeedback.status; // Nastaví 'accepted' nebo 'rejected'
             visualFeedback = data.userFeedback.feedback;
-
+            // 🔔 OMEGA NOTIFIKACE: Subjektivní zpráva pro autora nápadu
+            const msg = data.userFeedback.status === 'accepted' ? "Nápad přijat!" : "Nápad zamítnut!";
+            window.triggerBrowserNotification(msg);
             // 🚀 Běžný učitel vidí textový banner (nemá dodávku)
             if (user !== 'vedouci' && user !== 'omega') {
                 let feedbackBanner = document.getElementById('user-feedback-banner');
@@ -4488,7 +4505,100 @@ window.checkSystemStatus = async function() {
                     approvalForm.parentNode.insertBefore(emptyState, approvalForm);
                 }
                 emptyState.style.display = 'block';
+                // 🔔 OMEGA NOTIFIKACE: Vedení vidí nový návrh
+                if (window.LAST_SEEN_PENDING_DATE !== data.date) {
+                    window.triggerBrowserNotification("Nový návrh ke schválení!");
+                    window.LAST_SEEN_PENDING_DATE = data.date; // Zabráníme spamu při dalším pollingu
+                }
             }
+        }
+    } catch (e) {}
+};
+
+// ==========================================
+// 🔔 OMEGA NOTIFICATION ENGINE (Favicon & Title)
+// ==========================================
+window.OMEGA_ORIGINAL_TITLE = document.title;
+window.OMEGA_ORIGINAL_FAVICON = document.querySelector("link[rel*='icon']")?.href || 'spspb-logo-2000px.png';
+window.OMEGA_IS_NOTIFYING = false;
+
+window.triggerBrowserNotification = function(message = "Nová aktivita!") {
+    if (window.OMEGA_IS_NOTIFYING || document.hasFocus()) return; // Neupozorňujeme, pokud uživatel zrovna v okně pracuje
+    
+    window.OMEGA_IS_NOTIFYING = true;
+    document.title = `🔴 ${message}`;
+    
+    // Generování Faviconu s červenou tečkou přes Canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = window.OMEGA_ORIGINAL_FAVICON;
+    
+    img.onload = () => {
+        ctx.drawImage(img, 0, 0, 32, 32);
+        ctx.beginPath();
+        ctx.arc(24, 8, 8, 0, 2 * Math.PI); // Červená tečka vpravo nahoře
+        ctx.fillStyle = '#ef4444'; 
+        ctx.fill();
+        ctx.strokeStyle = '#0a0a0a'; // Tmavý okraj pro kontrast
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        let link = document.querySelector("link[rel*='icon']");
+        if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+        link.href = canvas.toDataURL("image/png");
+    };
+};
+
+window.clearBrowserNotification = function() {
+    if (!window.OMEGA_IS_NOTIFYING) return;
+    window.OMEGA_IS_NOTIFYING = false;
+    document.title = window.OMEGA_ORIGINAL_TITLE;
+    let link = document.querySelector("link[rel*='icon']");
+    if (link && window.OMEGA_ORIGINAL_FAVICON) link.href = window.OMEGA_ORIGINAL_FAVICON;
+};
+
+// Vyčištění notifikace jakmile uživatel klikne zpět do aplikace
+window.addEventListener('focus', window.clearBrowserNotification);
+window.addEventListener('click', window.clearBrowserNotification);
+
+window.saveOmegaProfile = async function() {
+    const email = document.getElementById('profile-email-input').value.trim();
+    const enabled = document.getElementById('profile-email-toggle').checked;
+
+    if (enabled && !email.includes('@')) return showToast("⚠️ Zadejte platný e-mail.");
+
+    showToast("⏳ Ukládám profil...");
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/profile/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ 
+                admin_username: sessionCredentials.username, 
+                admin_password: sessionCredentials.password,
+                profile: { email, notifications: enabled }
+            })
+        });
+        if (!res.ok) throw new Error("Chyba serveru");
+        showToast("✅ Nastavení profilu uloženo.");
+        document.getElementById('omega-profile-modal').style.display = 'none';
+    } catch (e) { showToast("❌ Nepodařilo se uložit profil."); }
+};
+
+// Volat v enterAdminUI() pro načtení stávajícího e-mailu
+window.loadOmegaProfile = async function() {
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/profile/get", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+        });
+        const data = await res.json();
+        if (data.profile) {
+            document.getElementById('profile-email-input').value = data.profile.email || "";
+            document.getElementById('profile-email-toggle').checked = data.profile.notifications || false;
         }
     } catch (e) {}
 };
