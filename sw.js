@@ -1,4 +1,4 @@
-const CACHE_NAME = 'SPS_Selekce_MAT_CETBY_v9.0.18'; 
+const CACHE_NAME = 'SPS_Selekce_MAT_CETBY_v9.0.21'; 
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
