@@ -1116,16 +1116,13 @@ elements.btnExport.addEventListener('click', () => {
             .map(id => KNIHY_DB.find(k => k.id === id))
             .sort((a, b) => a.id - b.id);
 
-        // Vygenerujeme čisté HTML z databáze
         const rawHtml = window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize);
 
-        // 🚀 OMEGA FIX: Neviditelný iFrame (Bypass Safari Async Print Bugu)
         let oldFrame = document.getElementById('omega-student-print-frame');
         if (oldFrame) oldFrame.remove();
 
         const printFrame = document.createElement('iframe');
         printFrame.id = 'omega-student-print-frame';
-        // Skryjeme ho vizuálně, ale nesmíme použít display:none, jinak Safari vytiskne prázdno
         printFrame.style.position = 'fixed';
         printFrame.style.right = '0';
         printFrame.style.bottom = '0';
@@ -1135,6 +1132,11 @@ elements.btnExport.addEventListener('click', () => {
         printFrame.style.zIndex = '-1';
         document.body.appendChild(printFrame);
 
+        // 🚀 OMEGA HOTFIX: Naklonování kaskádových stylů do iFramu
+        const cssLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+            .map(link => `<link rel="stylesheet" href="${link.href}">`)
+            .join('\n');
+
         const doc = printFrame.contentWindow.document;
         doc.open();
         doc.write(`
@@ -1142,7 +1144,7 @@ elements.btnExport.addEventListener('click', () => {
             <html>
             <head>
                 <title>Maturitní seznam</title>
-            </head>
+                ${cssLinks} </head>
             <body style="margin: 0; padding: 0; background: white;">
                 <div id="print-area">
                     ${rawHtml}
@@ -1154,7 +1156,7 @@ elements.btnExport.addEventListener('click', () => {
 
         trackOmegaEvent('Export_PDF_Generated', { books_count: state.selectedIds.size });
 
-        // iOS Safari potřebuje čas na vykreslení DOMu v iFramu před sejmutím snapshotu
+        // iOS Safari a PC potřebují chvíli na stažení a aplikaci CSS před vyfocením PDF
         setTimeout(() => {
             try {
                 printFrame.contentWindow.focus();
@@ -1163,7 +1165,7 @@ elements.btnExport.addEventListener('click', () => {
                 console.error("Print blocked:", e);
                 showToast("❌ Vaše zařízení blokuje tiskový dialog.");
             }
-        }, 600); // 600ms je bezpečný limit pro vykreslení u pomalých mobilů
+        }, 800); 
 
     } catch (error) {
         console.error("Print Engine Error:", error);
