@@ -1111,54 +1111,59 @@ elements.btnExport.addEventListener('click', () => {
     if (elements.btnExport.disabled) return;
 
     try {
+        showToast("⏳ Připravuji PDF dokument...");
         const selectedBooks = Array.from(state.selectedIds)
             .map(id => KNIHY_DB.find(k => k.id === id))
             .sort((a, b) => a.id - b.id);
 
-        const printArea = document.getElementById('print-area');
+        // Vygenerujeme čisté HTML z databáze
+        const rawHtml = window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize);
 
-        // 🚀 OMEGA FIX: Injekce dokumentu + izolované CSS výhradně pro studenta
-        printArea.innerHTML = `
-            <style>
-                @media print {
-                    /* Schová kompletně celou aplikaci kromě tiskové vrstvy */
-                    .layout, .mobile-nav, #toast, #share-modal, #preview-modal, #clear-modal, #omega-admin-portal, .fab-btn, #admin-print-editor-modal {
-                        display: none !important;
-                    }
-                    body {
-                        background: white !important;
-                        overflow: visible !important;
-                    }
-                    #print-area {
-                        display: block !important;
-                        visibility: visible !important;
-                        background: white !important;
-                        color: black !important;
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    #print-area * {
-                        color: black !important;
-                        visibility: visible !important;
-                        text-shadow: none !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                }
-            </style>
-            ${window.OMEGA_CONFIG.renderPdf(selectedBooks, state.student, sanitize)}
-        `;
+        // 🚀 OMEGA FIX: Neviditelný iFrame (Bypass Safari Async Print Bugu)
+        let oldFrame = document.getElementById('omega-student-print-frame');
+        if (oldFrame) oldFrame.remove();
+
+        const printFrame = document.createElement('iframe');
+        printFrame.id = 'omega-student-print-frame';
+        // Skryjeme ho vizuálně, ale nesmíme použít display:none, jinak Safari vytiskne prázdno
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.zIndex = '-1';
+        document.body.appendChild(printFrame);
+
+        const doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Maturitní seznam</title>
+            </head>
+            <body style="margin: 0; padding: 0; background: white;">
+                <div id="print-area">
+                    ${rawHtml}
+                </div>
+            </body>
+            </html>
+        `);
+        doc.close();
 
         trackOmegaEvent('Export_PDF_Generated', { books_count: state.selectedIds.size });
 
-        // Krátká prodleva pro aplikaci CSS
+        // iOS Safari potřebuje čas na vykreslení DOMu v iFramu před sejmutím snapshotu
         setTimeout(() => {
-            window.print();
-        }, 150);
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {
+                console.error("Print blocked:", e);
+                showToast("❌ Vaše zařízení blokuje tiskový dialog.");
+            }
+        }, 600); // 600ms je bezpečný limit pro vykreslení u pomalých mobilů
 
     } catch (error) {
         console.error("Print Engine Error:", error);
