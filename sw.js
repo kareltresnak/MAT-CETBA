@@ -1,4 +1,4 @@
-const VERSION = '9.0.33'; // 🚀 TOTO ČÍSLO ZVEDNI PŘI KAŽDÉM DEPLOYI
+const VERSION = '9.0.0'; // 🚀 TOTO ČÍSLO ZVEDNI PŘI KAŽDÉM DEPLOYI
 const CACHE_NAME = `SPS_Selekce_MAT_CETBY_v${VERSION}`; 
 
 // 🚀 OMEGA FIX: Dynamický Cache-Busting (Obejití HTTP Cache prohlížeče)
