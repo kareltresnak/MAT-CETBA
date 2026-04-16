@@ -270,7 +270,11 @@
                 <button onclick="attemptAdminExit()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s; white-space: nowrap;" onmouseover="this.style.color='var(--text-main)'; this.style.borderColor='var(--text-main)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
                     🔙 Zpět na hlavní web
                 </button>
-                
+
+                <button id="btn-system-update" onclick="executeSystemUpdate()" style="display: none; background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 10px;">
+                    🔄 Aktualizovat systém
+                </button>
+
                 <button onclick="document.getElementById('omega-profile-modal').style.display='flex'" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s; white-space: nowrap;" onmouseover="this.style.color='var(--accent-primary)'; this.style.borderColor='var(--accent-primary)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
                     ⚙️ Nastavení profilu
                 </button>
@@ -908,6 +912,28 @@
             </div>
 
             <button onclick="saveOmegaProfile()" class="btn success-btn" style="width: 100%; padding: 12px; font-weight: bold;">💾 Uložit nastavení</button>
+        </div>
+    </div>
+    <div id="update-warning-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: var(--bg-card, #1f2937); border: 2px solid #ef4444; border-radius: 8px; padding: 30px; max-width: 500px; color: white; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <h2 style="margin-top: 0; color: #ef4444; display: flex; align-items: center; gap: 10px;">
+                ⚠️ Dostupná aktualizace
+            </h2>
+            <p style="font-size: 1.1rem; line-height: 1.5; margin-bottom: 20px;">
+                Na serveru byla nalezena nová verze aplikace. Aby nedošlo ke ztrátě vaší práce, postupujte takto:
+            </p>
+            
+            <ol style="line-height: 1.8; margin-bottom: 25px; font-size: 1.05rem;">
+                <li>Zavřete toto varovné okno.</li>
+                <li>Pokud máte rozpracovaný návrh, <strong>vytvořte si zálohovací PIN</strong>.</li>
+                <li>Následně klikněte na červené tlačítko <strong>„Aktualizovat systém“</strong>, které se právě objevilo v horním menu.</li>
+            </ol>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <button onclick="document.getElementById('update-warning-modal').style.display='none'" style="background: #374151; border: 1px solid #4b5563; color: white; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                    Rozumím, jdu si uložit práci
+                </button>
+            </div>
         </div>
     </div>
     <div id="omega-print-layer"></div>

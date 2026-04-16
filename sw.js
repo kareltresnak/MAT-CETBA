@@ -1,14 +1,16 @@
-const CACHE_NAME = 'SPS_Selekce_MAT_CETBY_v9.0.23'; 
+const VERSION = '9.0.33'; // 🚀 TOTO ČÍSLO ZVEDNI PŘI KAŽDÉM DEPLOYI
+const CACHE_NAME = `SPS_Selekce_MAT_CETBY_v${VERSION}`; 
+
+// 🚀 OMEGA FIX: Dynamický Cache-Busting (Obejití HTTP Cache prohlížeče)
 const ASSETS_TO_CACHE = [
     './',
-    './index.html',
-    './style.css',
-    './style-spspb.css',
-    './data-spspb.js',
-    './app.js',
+    `./index.html?v=${VERSION}`,
+    `./style.css?v=${VERSION}`,
+    `./style-spspb.css?v=${VERSION}`,
+    `./app.js?v=${VERSION}`,
+    `./data-spspb.js?v=${VERSION}`,
     './spspb-logo-2000px.png',
     './manifest.json',
-    // Nativní offline generátor QR kódů
     './qrcode.min.js'
 ];
 
@@ -20,7 +22,8 @@ self.addEventListener('install', (event) => {
                 console.log('[Service Worker] Přednačítání offline dat');
                 return cache.addAll(ASSETS_TO_CACHE);
             })
-            .then(() => self.skipWaiting())
+        // ❌ TOTO SMAŽ: .then(() => self.skipWaiting()) 
+        // Nový SW nyní uvízne ve stavu "waiting" a nerozbije aktuální relaci.
     );
 });
 
@@ -86,5 +89,13 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
         );
+    }
+});
+
+// 🚀 OMEGA UPDATE PROTOCOL: Naslouchání na povel z UI k převzetí kontroly
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('[SW] Povel k aktualizaci přijat. Provádím Hot-Swap.');
+        self.skipWaiting();
     }
 });

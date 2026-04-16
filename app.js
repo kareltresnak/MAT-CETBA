@@ -38,7 +38,7 @@ window.fetch = async function(resource, config) {
     if (response.status === 401 && !resource.includes('/login')) {
         sessionStorage.removeItem('omega_session_token');
         sessionStorage.removeItem('omega_active_user');
-        sessionStorage.setItem('omega_session_expired', 'true');
+        sessionStorage.setItem('omega_security_breach', 'true'); // 🚀 OMEGA FIX: Správný důvod
         window.location.reload();
     }
     return response;
@@ -59,6 +59,89 @@ function getDeviceIdentity() {
     }
     return deviceId;
 }
+
+// =====================================================================
+// Správa aktualizací aplikace (Service Worker)
+// =====================================================================
+let newWorker;
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        // Kontrola, zda nečeká aktualizace z předchozího načtení
+        if (reg.waiting) {
+            newWorker = reg.waiting;
+            showUpdateUI();
+        }
+
+        // Sledování stahování nové verze na pozadí
+        reg.addEventListener('updatefound', () => {
+            newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+                // Nová verze je připravena, čeká na povolení k instalaci
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    showUpdateUI();
+                }
+            });
+        });
+    });
+
+    // Jakmile nový Service Worker převezme kontrolu, obnovíme stránku
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+    });
+}
+
+// Funkce zviditelní modál a tlačítko v menu
+function showUpdateUI() {
+    const modal = document.getElementById('update-warning-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+
+    const updateBtn = document.getElementById('btn-system-update');
+    if (updateBtn) {
+        updateBtn.style.display = 'inline-block';
+    }
+}
+
+// Funkce volaná po kliknutí na červené tlačítko v menu
+window.executeSystemUpdate = function() {
+    if (newWorker) {
+        // Pošleme Service Workeru pokyn k přepsání staré verze
+        newWorker.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+        // Záložní řešení, pokud by worker selhal
+        window.location.reload();
+    }
+};
+
+function showUpdateModal() {
+    const updateModal = document.getElementById('omega-update-modal');
+    if (updateModal) {
+        updateModal.style.display = 'flex';
+    } else {
+        // Fallback pro případ, že modál v HTML chybí
+        showToast("⚠️ Nová verze připravena k instalaci. Prosím obnovte stránku.");
+    }
+}
+
+// Funkce volaná tlačítkem z modálu
+window.executeOmegaUpdate = function() {
+    showToast("🔄 Inicializuji aktualizační protokol...");
+    
+    // Zde můžeš volitelně zavolat svou funkci na uložení rozpracovaného návrhu (např. auto-save do localStorage)
+    // saveDraftData(); 
+    
+    if (newWorker) {
+        // Pošleme workeru povel k sebevraždě staré verze a převzetí kontroly
+        newWorker.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+        window.location.reload();
+    }
+};
 
 /* ==========================================
    OMEGA TELEMETRY ENGINE
@@ -1195,6 +1278,35 @@ const initOmegaEngine = () => {
         const timeoutModal = document.getElementById('omega-timeout-modal');
         if (timeoutModal) timeoutModal.style.display = 'flex';
     }
+    // 🚀 OMEGA FIX: Detekce a hlášení kryptografického selhání
+    if (sessionStorage.getItem('omega_security_breach') === 'true') {
+        sessionStorage.removeItem('omega_security_breach'); 
+        setTimeout(() => showToast("🛑 BEZPEČNOSTNÍ INCIDENT: Relace neplatná. Přístup odepřen."), 500);
+        const authModal = document.getElementById('omega-auth-modal');
+        if (authModal) authModal.style.display = 'flex';
+    }
+
+    // 🚀 OMEGA DEEP LINKING (Multi-Param Safe)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === 'true') {
+        const authModal = document.getElementById('omega-auth-modal');
+        if (authModal) {
+            authModal.style.display = 'flex';
+            setTimeout(() => { 
+                const userInput = document.getElementById('admin-username-input');
+                if (userInput) userInput.focus(); 
+            }, 100);
+        }
+        
+        // 🚀 OMEGA FIX: Chirurgické odstranění pouze parametru 'admin'
+        urlParams.delete('admin');
+        
+        // Zpětné složení URL se zachováním ostatních parametrů (např. theme=spspb)
+        const remainingQuery = urlParams.toString();
+        const cleanUrl = window.location.pathname + (remainingQuery ? '?' + remainingQuery : '');
+        
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
 };
 
 // Spouštíme okamžitě, bez čekání na prohlížeč.
@@ -1293,17 +1405,35 @@ window.generateDiffHtml = function(draftDb) {
     if (analysis.added.length > 0) html += `<div style="color: var(--accent-green); font-size: 0.85rem;"><strong>➕ Přidáno (${analysis.added.length}):</strong> ${analysis.added.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
     if (analysis.deleted.length > 0) html += `<div style="color: var(--accent-red); font-size: 0.85rem; margin-top: 4px;"><strong>🗑️ Odebráno (${analysis.deleted.length}):</strong> ${analysis.deleted.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
     
-    // 🚀 OMEGA FIX: DNA Tracking (Starý název ➔ Nový název)
     if (analysis.edited.length > 0) {
         const editedText = analysis.edited.map(k => {
-            const origName = k.prodMatch ? k.prodMatch.dilo : (k._original ? k._original.dilo : "Neznámé");
-            if (origName.toLowerCase().trim() !== k.dilo.toLowerCase().trim()) {
-                return `<strike style="opacity: 0.6;">${sanitize(origName)}</strike> ➔ <strong>${sanitize(k.dilo)}</strong>`;
-            } else {
-                return `<strong>${sanitize(k.dilo)}</strong> (Úprava metadat)`;
+            const orig = k.prodMatch ? k.prodMatch : (k._original ? k._original : null);
+            if (!orig) return `<strong>${sanitize(k.dilo)}</strong>`;
+
+            let changes = [];
+            // Porovnání názvu
+            if (orig.dilo.trim() !== k.dilo.trim()) {
+                changes.push(`Dílo: <strike style="opacity: 0.6;">${sanitize(orig.dilo)}</strike> ➔ <strong>${sanitize(k.dilo)}</strong>`);
             }
-        }).join('<span style="color:var(--border); margin: 0 5px;">|</span>');
-        html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>✏️ Upraven text (${analysis.edited.length}):</strong> ${editedText}</div>`;
+            // Porovnání autora
+            if (orig.autor.trim() !== k.autor.trim()) {
+                changes.push(`Autor: <strike style="opacity: 0.6;">${sanitize(orig.autor)}</strike> ➔ <strong>${sanitize(k.autor)}</strong>`);
+            }
+            // Porovnání druhu
+            if (orig.druh !== k.druh) {
+                changes.push(`Druh: <strike style="opacity: 0.6;">${orig.druh}</strike> ➔ <strong>${k.druh}</strong>`);
+            }
+            // Porovnání období
+            if (orig.obdobi !== k.obdobi) {
+                changes.push(`Období: <strike style="opacity: 0.6;">${MAPA_OBDOBI[orig.obdobi] || orig.obdobi}</strike> ➔ <strong>${MAPA_OBDOBI[k.obdobi] || k.obdobi}</strong>`);
+            }
+
+            return `<div style="margin-bottom: 8px; border-left: 2px solid var(--border); padding-left: 10px;">
+                        <strong style="color: var(--text-main);">${sanitize(orig.dilo)}</strong><br>
+                        <span style="font-size: 0.85em; color: var(--text-muted); line-height: 1.4;">${changes.join('<br>')}</span>
+                    </div>`;
+        }).join('');
+        html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 10px;"><strong>✏️ Detailní úpravy (${analysis.edited.length}):</strong><div style="margin-top: 8px;">${editedText}</div></div>`;
     }
 
     if (analysis.manuallyMoved.length > 0) html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>↕️ Manuálně přesunuto (${analysis.manuallyMoved.length}):</strong> ${analysis.manuallyMoved.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
@@ -1372,11 +1502,11 @@ window.generateColoredPreviewTable = function(draftDb) {
         </div>`;
 
     return legendHtml + `
-    <div style="max-height: 400px; overflow-y: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+    <div style="max-height: 400px; overflow-y: auto; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; min-width: 800px;">
             <thead style="background: #111827; border-bottom: 2px solid var(--accent-primary); position: sticky; top: 0; z-index: 10;">
                 <tr>
-                    <th style="padding: 8px; text-align: center; color: white; width: 8%;">ID</th>
+                    <th style="padding: 8px; color: white; width: 8%;">ID</th>
                     <th style="padding: 8px; color: white; width: 35%;">Dílo</th>
                     <th style="padding: 8px; color: white; width: 25%;">Autor</th>
                     <th style="padding: 8px; color: white; width: 15%;">Druh</th>
@@ -2265,7 +2395,7 @@ async function enterAdminUI(userRole) {
         if (saveBtn) {
             if (activeUser === 'omega') saveBtn.innerHTML = '💾 Uložit změny a přepsat databázi';
             else if (activeUser === 'vedouci') saveBtn.innerHTML = '📩 Odeslat návrh ke schválení';
-            else saveBtn.innerHTML = '💡 Odeslat nápady komisi';
+            else saveBtn.innerHTML = '💡 Odeslat nápady vedoucí(mu) katedry';
         }
 
         // 🚀 OMEGA UX: Schránka pro vedoucí a Omegu
@@ -3680,25 +3810,25 @@ window.adminDeleteChangelog = function(idx) {
 
 // --- 🏛️ OMEGA GOVERNANCE ENGINE ---
 
-// --- 🚀 OMEGA UI: Minimalizace Trackeru a State Management ---
-window.OMEGA_TRACKER_DISMISSED = false;
-window.LAST_SEEN_TRUCK_ID = null;
+// --- STATE MANAGEMENT TRACKERU ---
+window.TRACKER_DISMISSED = false;
+window.LAST_SEEN_TRUCK_ID = localStorage.getItem('omega_last_truck_id') || null;
+window.LAST_SEEN_TRUCK_STATUS = localStorage.getItem('omega_last_truck_status') || null;
+window.LAST_SEEN_TRUCK_FEEDBACK = localStorage.getItem('omega_last_truck_feedback') || "";
+window.LAST_SEEN_TRUCK_DATE = localStorage.getItem('omega_last_truck_date') || "";
 
 window.dismissTruckTracker = function() {
-    window.OMEGA_TRACKER_DISMISSED = true; 
-    // Fyzický zápis do paměti disku pro konkrétní stav
+    window.TRACKER_DISMISSED = true; 
     if (window.LAST_SEEN_TRUCK_ID) {
         localStorage.setItem('omega_dismissed_tracker_id', window.LAST_SEEN_TRUCK_ID);
     }
-    const tracker = document.getElementById('omega-truck-tracker');
-    if (tracker) tracker.style.display = 'none';
+    renderTrackerUI();
 };
 
 window.toggleTruckTracker = function() {
     const body = document.getElementById('truck-body-container');
     const btn = document.getElementById('truck-toggle-btn');
     
-    // 🚀 OMEGA FIX: Plynulá interpolace přes max-height
     if (!body.style.maxHeight || body.style.maxHeight !== '0px') {
         body.style.maxHeight = '0px';
         body.style.opacity = '0';
@@ -3712,38 +3842,64 @@ window.toggleTruckTracker = function() {
     }
 };
 
-function updateDeliveryTruck(status, feedback = "", date = "") {
-    if (!status || status === 'idle') {
-        const tracker = document.getElementById('omega-truck-tracker');
-        if (tracker) tracker.style.display = 'none';
-        return;
+// 1. Logika pro zpracování dat ze serveru (Nemanipuluje s DOMem)
+window.updateDeliveryTruck = function(incomingStatus, incomingFeedback = "", incomingDate = "") {
+    const stateId = incomingStatus + "_" + incomingDate;
+    
+    // Pokud nám server hlásí aktivní stav (schvaluje se, schváleno, zamítnuto)
+    if (incomingStatus === 'pending' || incomingStatus === 'accepted' || incomingStatus === 'rejected') {
+        
+        // Je to nová událost? Pokud ano, zrušíme případné předchozí skrytí uživatelem
+        if (window.LAST_SEEN_TRUCK_ID !== stateId) {
+            window.TRACKER_DISMISSED = false;
+        }
+
+        // Zápis do lokální paměti
+        window.LAST_SEEN_TRUCK_ID = stateId;
+        window.LAST_SEEN_TRUCK_STATUS = incomingStatus;
+        window.LAST_SEEN_TRUCK_FEEDBACK = incomingFeedback;
+        window.LAST_SEEN_TRUCK_DATE = incomingDate;
+
+        localStorage.setItem('omega_last_truck_id', stateId);
+        localStorage.setItem('omega_last_truck_status', incomingStatus);
+        localStorage.setItem('omega_last_truck_feedback', incomingFeedback);
+        localStorage.setItem('omega_last_truck_date', incomingDate);
+    } 
+    // Pokud nám server hlásí 'idle', reagujeme jen tehdy, pokud jsme měli stav 'pending' 
+    // (Znamená to, že návrh byl např. smazán administrátorem bokem)
+    else if (incomingStatus === 'idle') {
+        if (window.LAST_SEEN_TRUCK_STATUS === 'pending') {
+            window.LAST_SEEN_TRUCK_STATUS = 'idle';
+            localStorage.setItem('omega_last_truck_status', 'idle');
+        }
     }
 
-    // 🚀 OMEGA FIX: Unikátní ID stavu (Status + Přesný čas vzniku z databáze)
-    const stateId = status + "_" + date;
-    const dismissedId = localStorage.getItem('omega_dismissed_tracker_id');
+    // Nyní teprve překreslíme UI na základě čisté lokální paměti
+    renderTrackerUI();
+};
 
-    // Kontrola, zda uživatel TENTO konkrétní stav už v minulosti nezavřel
-    if (dismissedId === stateId) {
-        window.OMEGA_TRACKER_DISMISSED = true;
-    } else if (window.LAST_SEEN_TRUCK_ID !== stateId) {
-        // Změna stavu = Zrušení amnézie (Tracker se musí znovu ukázat)
-        window.OMEGA_TRACKER_DISMISSED = false;
-    }
-
-    window.LAST_SEEN_TRUCK_ID = stateId;
-
+// 2. Oddělená vizualizační logika (Pracuje jen s lokální pamětí)
+function renderTrackerUI() {
     const tracker = document.getElementById('omega-truck-tracker');
-    if (window.OMEGA_TRACKER_DISMISSED) {
-        if (tracker) tracker.style.display = 'none';
-        return;
-    }
-
     const line = document.getElementById('truck-progress-line');
     const truck = document.getElementById('truck-icon');
     const statusText = document.getElementById('truck-status-text');
-    
+
     if (!tracker || !line || !truck) return;
+
+    const status = window.LAST_SEEN_TRUCK_STATUS;
+    const feedback = window.LAST_SEEN_TRUCK_FEEDBACK;
+
+    // Kontrola, zda uživatel okno dříve nezavřel
+    const dismissedId = localStorage.getItem('omega_dismissed_tracker_id');
+    if (dismissedId === window.LAST_SEEN_TRUCK_ID) {
+        window.TRACKER_DISMISSED = true;
+    }
+
+    if (!status || status === 'idle' || window.TRACKER_DISMISSED) {
+        tracker.style.display = 'none';
+        return;
+    }
 
     document.querySelectorAll('.truck-stop').forEach(s => {
         s.style.color = 'var(--text-muted)';
@@ -4356,6 +4512,13 @@ window.executeDraftApi = async function(endpoint, extraData) {
         if (!res.ok) throw new Error("Chyba při operaci na serveru.");
         showToast("✅ Operace proběhla úspěšně.");
         
+        // 🚀 OMEGA KERNEL HOT-SWAP: Okamžitá injekce dat do lokální RAM
+        // Zabráníme tomu, aby PDF generátor tiskl stará data před kompilací Gitu.
+        if (endpoint === '/draft/approve' && window.DRAFT_KNIHY_DB) {
+            // Hluboká kopie schváleného návrhu přepíše starou databázi v paměti
+            window.OMEGA_CONFIG.KNIHY_DB = JSON.parse(JSON.stringify(window.DRAFT_KNIHY_DB));
+        }
+
         const approvalForm = document.getElementById('admin-form-approval');
         if (approvalForm) approvalForm.style.display = 'none'; 
         
