@@ -1,4 +1,4 @@
-const VERSION = '9.0.0'; // 🚀 TOTO ČÍSLO ZVEDNI PŘI KAŽDÉM DEPLOYI
+const VERSION = '9.0.0';
 const CACHE_NAME = `SPS_Selekce_MAT_CETBY_v${VERSION}`; 
 
 // 🚀 OMEGA FIX: Dynamický Cache-Busting (Obejití HTTP Cache prohlížeče)
@@ -92,10 +92,14 @@ self.addEventListener('fetch', (event) => {
     }
 });
 
-// 🚀 OMEGA UPDATE PROTOCOL: Naslouchání na povel z UI k převzetí kontroly
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-        console.log('[SW] Povel k aktualizaci přijat. Provádím Hot-Swap.');
-        self.skipWaiting();
-    }
+// Fáze 1: Instalace a nabití Cache
+self.addEventListener('install', (event) => {
+    self.skipWaiting(); // 🚀 OMEGA AGGRESSIVE TAKEOVER: Nečekáme na nic.
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('[SW] Přednačítání offline dat');
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
+    );
 });

@@ -61,38 +61,41 @@ function getDeviceIdentity() {
 }
 
 // =====================================================================
-// Správa aktualizací aplikace (Service Worker)
+// 🚀 SMART PWA UPDATE ENGINE (Bez zbytečných tlačítek)
 // =====================================================================
-let newWorker;
-
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
-        // Kontrola, zda nečeká aktualizace z předchozího načtení
-        if (reg.waiting) {
-            newWorker = reg.waiting;
-            showUpdateUI();
-        }
+    // 🚀 OMEGA FIX: Absolutní zákaz dynamických parametrů v produkční registraci!
+    navigator.serviceWorker.register('sw.js');
 
-        // Sledování stahování nové verze na pozadí
-        reg.addEventListener('updatefound', () => {
-            newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-                // Nová verze je připravena, čeká na povolení k instalaci
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    showUpdateUI();
-                }
-            });
-        });
-    });
-
-    // Jakmile nový Service Worker převezme kontrolu, obnovíme stránku
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
+
+        // 1. Zjistíme, kde se uživatel nachází a co dělá
+        const adminPortal = document.getElementById('omega-admin-portal');
+        const isAdminActive = adminPortal && adminPortal.style.display === 'block';
+        
+        // Funkce checkForUnsavedChanges už ve tvém kódu existuje!
+        const hasChanges = typeof checkForUnsavedChanges === 'function' ? checkForUnsavedChanges() : false;
+
+        // 2. Rozhodovací logika
+        if (isAdminActive && hasChanges) {
+            // Učitel upravuje data! Nesmíme reloadnout stránku, jinak o to přijde.
+            const modal = document.getElementById('update-warning-modal');
+            if (modal) modal.style.display = 'flex';
+        } else {
+            // Student prohlíží web, NEBO admin nemá nic rozpracováno.
+            // Okamžitý, tichý reload stránky. Uživatel dostane novou verzi bez ptaní.
+            refreshing = true;
+            window.location.reload();
+        }
     });
 }
+
+window.executeSystemUpdate = function() {
+    window.OMEGA_SAFE_EXIT = true; // Propustka pro bypass beforeunload
+    window.location.reload();
+};
 
 // Funkce zviditelní modál a tlačítko v menu
 function showUpdateUI() {
@@ -1209,29 +1212,45 @@ elements.btnScrollTop?.addEventListener('click', () => {
 });
 
 // ==========================================
-// AUTO-DETEKCE VERZE (Z CACHE API)
+// AUTO-DETEKCE VERZE & INTELIGENTNÍ CHANGELOG UI
 // ==========================================
 
-// Auto-detekce a propsání do tlačítka
+// 1. Zjištění a propsání verze (Pouze pro patičku)
 if ('caches' in window) {
     caches.keys().then(keys => {
         const cacheName = keys.find(key => key.includes('SPS_Selekce_MAT_CETBY'));
         const versionEl = document.getElementById('app-version-val');
-        const btnLogText = document.getElementById('btn-public-changelog-text'); // 🚀 OMEGA FIX: Míříme jen na text!
         
         let finalVer = 'v' + OMEGA_VERSION;
         if (cacheName) {
             const version = cacheName.split('_').pop(); 
             finalVer = version.startsWith('v') ? version : 'v' + version;
         }
-        
         if (versionEl) versionEl.textContent = finalVer;
-        if (btnLogText) btnLogText.textContent = 'Release Notes ' + finalVer; // Dynamický text
     }).catch(err => {
-        // Fallback pro případ chyby
-        const btnLogText = document.getElementById('btn-public-changelog-text');
-        if (btnLogText) btnLogText.textContent = 'Release Notes v' + OMEGA_VERSION;
+        const versionEl = document.getElementById('app-version-val');
+        if (versionEl) versionEl.textContent = 'v' + OMEGA_VERSION;
     });
+}
+
+// 2. Skrytí / Zobrazení tlačítka pro úpravy knih
+const dbData = window.OMEGA_CONFIG.CHANGELOG_DB || [];
+const dbChanges = dbData.filter(i => i.type === 'db');
+
+const changelogBtn = document.getElementById('btn-public-changelog') || document.querySelector('button[onclick="openChangelog()"]');
+const btnLogText = document.getElementById('btn-public-changelog-text');
+
+if (changelogBtn) {
+    if (dbChanges.length > 0) {
+        changelogBtn.style.display = 'flex'; 
+        changelogBtn.style.margin = '20px auto'; // 🚀 Vycentrování horizontálně
+        changelogBtn.style.justifyContent = 'center';
+        changelogBtn.style.width = 'fit-content';
+        changelogBtn.style.padding = '8px 25px'; // Trochu ho roztáhneme
+        if (btnLogText) btnLogText.textContent = 'Úpravy seznamu knih';
+    } else {
+        changelogBtn.style.display = 'none';
+    }
 }
 
 // ======= MOBILE NAVIGATION ENGINE =======
@@ -3182,9 +3201,6 @@ window.prepareDatabaseExport = async function() {
             notes.push(html);
         }
 
-        const appVerEl = document.getElementById('app-version-val');
-        const appVer = appVerEl ? appVerEl.textContent : 'v9.0.2';
-
         // Zápis do lokální instance changelogu (Komentář už neukládáme jako vizuální prvek)
         adminChangelogDb.unshift({
             type: 'db', version: `Revize databáze (${appVer})`, date: today, notes: notes
@@ -3709,57 +3725,42 @@ window.addEventListener('afterprint', () => {
     console.log("🧹 Tisková paměť byla úspěšně vyčištěna.");
 });
 
-// --- 📄 CHANGELOG ENGINE (Tri-Tab Edition) ---
-
-window.switchPublicChangelog = function(tab) {
-    const tabs = ['dev', 'features', 'db'];
-    
-    tabs.forEach(t => {
-        const content = document.getElementById(`changelog-content-${t}`);
-        const btn = document.getElementById(`tab-pub-${t}`);
-        
-        if (content) content.style.display = (tab === t) ? 'block' : 'none';
-        if (btn) {
-            btn.style.color = (tab === t) ? 'var(--accent-primary)' : 'var(--text-muted)';
-            btn.style.borderBottomColor = (tab === t) ? 'var(--accent-primary)' : 'transparent';
-            btn.style.opacity = (tab === t) ? '1' : '0.6';
-        }
-    });
-};
+// --- 📄 CHANGELOG ENGINE (Toggle / Pure Date Edition) ---
 
 window.openChangelog = function() {
     const modal = document.getElementById('omega-changelog-modal');
     const dbData = window.OMEGA_CONFIG.CHANGELOG_DB || [];
-    
-    // 🚀 OMEGA FIX: Dynamický render (Vývoj má odrážky, DB má čisté Grid bloky)
-    const renderHtml = (items) => items.map(entry => `
-        <div style="margin-bottom: 20px; background: var(--bg-base); padding: 15px; border-radius: 6px; border-left: 3px solid var(--accent-primary-light);">
-            <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                <span>${sanitize(entry.version)} <span style="font-size: 0.75rem; opacity: 0.6; font-weight: normal; margin-left: 10px; color: var(--text-muted);">${sanitize(entry.date)}</span></span>
-            </h3>
-            ${entry.type === 'db' 
-                ? `<div style="color: var(--text-main); margin-top: 15px;">${entry.notes.join('')}</div>`
-                : `<ul style="color: var(--text-muted); padding-left: 20px; margin: 0; line-height: 1.5;">${entry.notes.map(n => `<li style="margin-bottom: 5px;">${n}</li>`).join('')}</ul>`
-            }
-        </div>
-    `).join('') || '<div style="color: var(--text-muted); font-style: italic; text-align: center; padding: 20px;">Zatím žádné záznamy v této kategorii.</div>';
+    const dbChanges = dbData.filter(i => i.type === 'db');
 
-    // Filtrace
-    const devCont = document.getElementById('changelog-content-dev');
-    const featCont = document.getElementById('changelog-content-features');
-    const dbCont = document.getElementById('changelog-content-db');
+    const renderHtml = dbChanges.map((entry, index) => {
+        // První (nejnovější) záznam bude rozevřený, ostatní sbalené
+        const isFirst = index === 0; 
+        const contentDisplay = isFirst ? 'block' : 'none';
+        const icon = isFirst ? '▲' : '▼';
+        
+        return `
+        <div style="margin-bottom: 15px; background: var(--bg-base); border-radius: 6px; border-left: 3px solid var(--accent-primary-light); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            
+            <div onclick="const body = this.nextElementSibling; const icon = this.querySelector('.toggle-icon'); if(body.style.display === 'none') { body.style.display = 'block'; icon.textContent = '▲'; } else { body.style.display = 'none'; icon.textContent = '▼'; }" 
+                 style="padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); transition: background 0.2s;" 
+                 onmouseover="this.style.background='rgba(255,255,255,0.05)'" 
+                 onmouseout="this.style.background='rgba(255,255,255,0.02)'">
+                
+                <h3 style="color: var(--text-main); margin: 0; font-size: 1.1rem; font-weight: bold; display: flex; align-items: center;">
+                    🗓️ ${sanitize(entry.date)}
+                </h3>
+                <span class="toggle-icon" style="color: var(--text-muted); font-size: 0.9rem; font-weight: bold;">${icon}</span>
+            </div>
+            
+            <div style="padding: 0 15px 15px 15px; display: ${contentDisplay}; border-top: 1px dashed var(--border); margin-top: 5px; padding-top: 15px;">
+                ${Array.isArray(entry.notes) ? entry.notes.join('') : entry.notes}
+            </div>
+            
+        </div>`;
+    }).join('') || '<div style="color: var(--text-muted); font-style: italic; text-align: center; padding: 20px;">Zatím nebyly provedeny žádné úpravy v seznamu děl.</div>';
 
-    if (devCont) devCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'dev' || !i.type)); 
-    if (featCont) featCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'features'));
-    if (dbCont) dbCont.innerHTML = renderHtml(dbData.filter(i => i.type === 'db'));
-
-    // Všechny taby jsou veřejně přístupné
-    const tabDev = document.getElementById('tab-pub-dev');
-    const tabFeat = document.getElementById('tab-pub-features');
-    if (tabDev) tabDev.style.display = 'inline-block';
-    if (tabFeat) tabFeat.style.display = 'inline-block';
-
-    switchPublicChangelog('features'); 
+    const cont = document.getElementById('changelog-content');
+    if (cont) cont.innerHTML = renderHtml;
 
     if (modal) modal.style.display = 'flex';
 };
@@ -3771,18 +3772,18 @@ window.closeChangelog = function() {
 
 // --- ADMIN CHANGELOG ENGINE ---
 window.adminAddChangelogEntry = function() {
-    const type = document.getElementById('ch-type').value;
     const ver = document.getElementById('ch-version').value.trim();
     const dat = document.getElementById('ch-date').value.trim();
     const notes = document.getElementById('ch-notes').value.split('\n').filter(l => l.trim() !== "");
 
     if (!ver || !dat || notes.length === 0) return showToast("⚠️ Vyplňte kompletní údaje o verzi a poznámky.");
 
-    adminChangelogDb.unshift({ type: type, version: ver, date: dat, notes: notes });
+    // Ručně přidané záznamy z adminu zabalíme do divů, aby ladily s auto-generovanými
+    const formattedNotes = notes.map(n => `<div style="margin-bottom: 5px;">• ${sanitize(n)}</div>`);
+    adminChangelogDb.unshift({ type: 'db', version: ver, date: dat, notes: formattedNotes });
     
     renderAdminChangelog();
     showToast("📄 Záznam přidán (nezapomeňte Uložit databázi).");
-    
     document.getElementById('ch-notes').value = '';
 };
 
@@ -3790,12 +3791,10 @@ window.renderAdminChangelog = function() {
     const cont = document.getElementById('admin-changelog-preview');
     if (!cont) return;
     
-    const icons = { 'dev': '⚙️', 'features': '🚀', 'db': '📚' };
-    
     cont.innerHTML = adminChangelogDb.map((entry, idx) => `
         <div style="padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-base);">
             <div>
-                <span style="font-size: 1.2em; margin-right: 8px;">${icons[entry.type] || '⚙️'}</span>
+                <span style="font-size: 1.2em; margin-right: 8px;">📚</span>
                 <strong>${sanitize(entry.version)}</strong> <span style="opacity: 0.6; font-size: 0.85em;">(${sanitize(entry.date)})</span>
             </div>
             <button onclick="adminDeleteChangelog(${idx})" style="background: transparent; border: none; color: var(--accent-red); cursor: pointer; padding: 5px;">🗑️</button>

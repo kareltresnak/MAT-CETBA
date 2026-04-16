@@ -734,25 +734,19 @@
             </div>
         </div>
     </div>
-    <div id="omega-changelog-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 20000; justify-content: center; align-items: center;">
-        <div style="background: var(--bg-surface); padding: 25px; border-radius: 12px; border: 1px solid var(--border); width: 90%; max-width: 600px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0; color: var(--accent-primary); letter-spacing: 1px; text-transform: uppercase;">Archiv změn</h2>
-                <button onclick="closeChangelog()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'">×</button>
+    <div id="omega-changelog-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 30px; width: 90%; max-width: 650px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: var(--accent-primary); font-size: 1.5rem;">📚 ÚPRAVY SEZNAMU KNIH</h2>
+                <button onclick="closeChangelog()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">×</button>
             </div>
             
-            <div style="display: flex; gap: 15px; border-bottom: 1px solid var(--border); margin-bottom: 20px; padding-bottom: 10px; overflow-x: auto; white-space: nowrap;">
-                <button id="tab-pub-dev" onclick="switchPublicChangelog('dev')" style="background: transparent; border: none; border-bottom: 2px solid var(--accent-primary); color: var(--accent-primary); font-weight: bold; cursor: pointer; padding-bottom: 5px; transition: 0.2s;">⚙️ Změny systému</button>
-                <button id="tab-pub-features" onclick="switchPublicChangelog('features')" style="background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.6; font-weight: bold; cursor: pointer; padding-bottom: 5px; transition: 0.2s;">🚀 Funkční novinky</button>
-                <button id="tab-pub-db" onclick="switchPublicChangelog('db')" style="background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.6; font-weight: bold; cursor: pointer; padding-bottom: 5px; transition: 0.2s;">📚 Úpravy seznamu děl</button>
-            </div>
+            <div id="changelog-content" style="overflow-y: auto; flex-grow: 1; padding-right: 10px;">
+                </div>
 
-            <div id="changelog-content-dev" style="flex: 1; overflow-y: auto; padding-right: 10px; display: block;"></div>
-            <div id="changelog-content-features" style="flex: 1; overflow-y: auto; padding-right: 10px; display: none;"></div>
-            <div id="changelog-content-db" style="flex: 1; overflow-y: auto; padding-right: 10px; display: none;"></div>
-            
-            <div style="margin-top: 20px; text-align: center;">
-                <button onclick="closeChangelog()" style="width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: bold;" onmouseover="this.style.background='var(--bg-base)'">Zavřít</button>
+            <div style="margin-top: 20px; text-align: right; padding-top: 15px; border-top: 1px solid var(--border);">
+                <button onclick="closeChangelog()" class="btn" style="background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main);">Zavřít</button>
             </div>
         </div>
     </div>
@@ -914,24 +908,27 @@
             <button onclick="saveOmegaProfile()" class="btn success-btn" style="width: 100%; padding: 12px; font-weight: bold;">💾 Uložit nastavení</button>
         </div>
     </div>
-    <div id="update-warning-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center;">
-        <div style="background: var(--bg-card, #1f2937); border: 2px solid #ef4444; border-radius: 8px; padding: 30px; max-width: 500px; color: white; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+    <div id="update-warning-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-card, #1f2937); border: 2px solid #ef4444; border-radius: 8px; padding: 30px; max-width: 500px; color: white; text-align: left; box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3);">
             <h2 style="margin-top: 0; color: #ef4444; display: flex; align-items: center; gap: 10px;">
-                ⚠️ Dostupná aktualizace
+                ⚠️ Kritická aktualizace systému
             </h2>
             <p style="font-size: 1.1rem; line-height: 1.5; margin-bottom: 20px;">
-                Na serveru byla nalezena nová verze aplikace. Aby nedošlo ke ztrátě vaší práce, postupujte takto:
+                Na pozadí se právě nainstalovala nová verze aplikace. <strong>Máte rozpracované změny, o které byste mohli přijít.</strong>
             </p>
             
-            <ol style="line-height: 1.8; margin-bottom: 25px; font-size: 1.05rem;">
-                <li>Zavřete toto varovné okno.</li>
-                <li>Pokud máte rozpracovaný návrh, <strong>vytvořte si zálohovací PIN</strong>.</li>
-                <li>Následně klikněte na červené tlačítko <strong>„Aktualizovat systém“</strong>, které se právě objevilo v horním menu.</li>
-            </ol>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 25px;">
+                <strong>Jak postupovat:</strong><br>
+                1. Vytvořte si "Zálohovací PIN" z nabídky v "Seznam děl a úpravy" (pokud chcete změny zachovat).<br>
+                2. Poté klikněte na tlačítko níže pro restart aplikace.
+            </div>
             
-            <div style="display: flex; justify-content: flex-end;">
-                <button onclick="document.getElementById('update-warning-modal').style.display='none'" style="background: #374151; border: 1px solid #4b5563; color: white; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
-                    Rozumím, jdu si uložit práci
+            <div style="display: flex; gap: 15px; justify-content: flex-end;">
+                <button onclick="document.getElementById('update-warning-modal').style.display='none'" style="background: transparent; border: 1px solid var(--border); color: white; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                    Jdu vygenerovat PIN
+                </button>
+                <button onclick="executeSystemUpdate()" style="background: #ef4444; border: none; color: white; font-weight: bold; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                    🔄 RESTARTOVAT NYNÍ
                 </button>
             </div>
         </div>

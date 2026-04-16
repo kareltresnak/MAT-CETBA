@@ -20,6 +20,11 @@ OMEGA v9.0.0 není pouhým generátorem seznamů; je to **kolaborativní platfor
 * **3-Way Merge & Conflict Resolver:** Systém umožňuje asynchronní slučování cizích návrhů do rozpracovaného editoru. V případě konfliktu (shodná díla na různých pozicích) se aktivuje interaktivní Mergetool, který vynutí manuální rozlišení kolidujících vektorů.
 * **Dual-Track Auditing (Smart Changelog):** Historie změn je rozdělena na systémové aktualizace (`dev`) a databázové revize (`db`). Každá schválená změna v seznamu děl automaticky generuje datový snapshot (počty změn + autorizace), čímž zaručuje 100% auditní integritu.
 
+### ⚙️ Zero-Friction PWA Lifecycle Engine
+Tradiční SPA/PWA aplikace trpí na "Zombie Frontend" (uvíznutí v HTTP cache) a destruktivní aktualizace. OMEGA implementuje pokročilý Observer Pattern nad instancí Service Workeru:
+* **Silent Hot-Swap (Public Mode):** Instalace nového jádra a invalidace staré cache probíhá asynchronně na pozadí. Přechod na novou verzi je vyřešen milisekundovým auto-reloadem přes `controllerchange` event. Zero friction pro běžného uživatele.
+* **State-Preserving Intercept (Admin Mode):** Pokud `AppObserver` detekuje modifikovanou instanci v `adminVirtualDb` (neuložená entropie), aktualizace je zablokována. UI vyvolá záchranný protokol (vynucení Zálohovacího PINu) před povolením garbage collection a restartem aplikace. Eliminace ztráty rozpracovaných dat (Data Loss Prevention).
+
 ### 🛡️ Bezpečnostní protokoly Edge Gateway
 
 * **L7 Volumetric DDoS Mitigation:** Perimetr je zajištěn asymetrickou výzvou (Cloudflare Turnstile). Náklady na výpočetní výkon jsou přeneseny na stranu útočníka ($E_{attack} \gg E_{defense}$).
