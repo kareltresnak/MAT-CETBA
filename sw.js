@@ -1,14 +1,16 @@
-const CACHE_NAME = 'SPS_Selekce_MAT_CETBY_v8.0.0'; 
+const VERSION = '9.0.0';
+const CACHE_NAME = `SPS_Selekce_MAT_CETBY_v${VERSION}`; 
+
+// 🚀 OMEGA FIX: Dynamický Cache-Busting (Obejití HTTP Cache prohlížeče)
 const ASSETS_TO_CACHE = [
     './',
-    './index.html',
-    './style.css',
-    './style-spspb.css',
-    './data-spspb.js',
-    './app.js',
+    `./index.html?v=${VERSION}`,
+    `./style.css?v=${VERSION}`,
+    `./style-spspb.css?v=${VERSION}`,
+    `./app.js?v=${VERSION}`,
+    `./data-spspb.js?v=${VERSION}`,
     './spspb-logo-2000px.png',
     './manifest.json',
-    // Nativní offline generátor QR kódů
     './qrcode.min.js'
 ];
 
@@ -20,7 +22,8 @@ self.addEventListener('install', (event) => {
                 console.log('[Service Worker] Přednačítání offline dat');
                 return cache.addAll(ASSETS_TO_CACHE);
             })
-            .then(() => self.skipWaiting())
+        // ❌ TOTO SMAŽ: .then(() => self.skipWaiting()) 
+        // Nový SW nyní uvízne ve stavu "waiting" a nerozbije aktuální relaci.
     );
 });
 
@@ -87,4 +90,16 @@ self.addEventListener('fetch', (event) => {
                 })
         );
     }
+});
+
+// Fáze 1: Instalace a nabití Cache
+self.addEventListener('install', (event) => {
+    self.skipWaiting(); // 🚀 OMEGA AGGRESSIVE TAKEOVER: Nečekáme na nic.
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => {
+                console.log('[SW] Přednačítání offline dat');
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
+    );
 });
