@@ -1564,7 +1564,7 @@ window.fetchPrivateAuditLog = async function() {
                 "Content-Type": "application/json",
                 "X-Omega-Device-Id": getDeviceIdentity() 
             },
-            body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password })
+            body: JSON.stringify({}) // 🚀 OMEGA FIX: Prázdné tělo, identita je v Tokenu
         });
         const data = await response.json();
         
@@ -1681,7 +1681,7 @@ window.executeRevert = async function() {
                 "Content-Type": "application/json",
                 "X-Omega-Device-Id": getDeviceIdentity()
             },
-            body: JSON.stringify({ username: sessionCredentials.username, password: sessionCredentials.password, target_commit: targetRevertHash })
+            body: JSON.stringify({ target_commit: targetRevertHash })
         });
         if (!response.ok) throw new Error("Revert selhal na straně serveru.");
         showToast("✅ Databáze úspěšně obnovena! Obnovte stránku.");
@@ -1757,8 +1757,6 @@ window.executeCreateUser = async function() {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
             body: JSON.stringify({ 
-                admin_username: sessionCredentials.username, 
-                admin_password: sessionCredentials.password,
                 new_username: newUser,
                 new_password: newPwd
             })
@@ -1794,7 +1792,7 @@ window.fetchAdminUsers = async function() {
         const response = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/list-users", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+            body: JSON.stringify({})
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
@@ -1839,8 +1837,6 @@ window.confirmDeleteUser = async function() {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
             body: JSON.stringify({ 
-                admin_username: sessionCredentials.username, 
-                admin_password: sessionCredentials.password,
                 target_user: targetUser
             })
         });
@@ -2234,8 +2230,9 @@ window.addEventListener('popstate', (event) => {
 });
 // 🚀 OMEGA UI TRANSITION: Čistý vstup do administrace (Bypass Turnstile)
 async function enterAdminUI(userRole) {
-    // Smazali jsme sessionCredentials a sessionPassword, nepotřebujeme je.
-    window.sessionCredentials = { username: userRole };
+    // 🚀 OMEGA FIX: Exaktní zápis do lokálního Scope aplikace
+    sessionCredentials.username = userRole;
+    window.sessionCredentials = sessionCredentials;
 
     const appElements = ['.layout', 'header', '.mobile-nav', 'footer', '.brand', 'main', '#toast', '#omega-print-layer'];
     appElements.forEach(selector => {
@@ -3185,9 +3182,7 @@ function pushToCloudflare(fileContent, turnstileToken, customMsg = "") {
             "X-Omega-Device-Id": getDeviceIdentity() 
         },
         body: JSON.stringify({ 
-            fileContent: fileContent, 
-            username: sessionCredentials.username, 
-            password: sessionCredentials.password, 
+            fileContent: fileContent,  
             cf_token: turnstileToken ,
             commit_message: customMsg, 
             base_version: DB_VERSION 
@@ -3687,10 +3682,14 @@ window.adminDeleteChangelog = function(idx) {
 
 // --- 🚀 OMEGA UI: Minimalizace Trackeru a State Management ---
 window.OMEGA_TRACKER_DISMISSED = false;
-window.LAST_SEEN_TRUCK_STATUS = null;
+window.LAST_SEEN_TRUCK_ID = null;
 
 window.dismissTruckTracker = function() {
-    window.OMEGA_TRACKER_DISMISSED = true; // Zapsáno do paměti relace
+    window.OMEGA_TRACKER_DISMISSED = true; 
+    // Fyzický zápis do paměti disku pro konkrétní stav
+    if (window.LAST_SEEN_TRUCK_ID) {
+        localStorage.setItem('omega_dismissed_tracker_id', window.LAST_SEEN_TRUCK_ID);
+    }
     const tracker = document.getElementById('omega-truck-tracker');
     if (tracker) tracker.style.display = 'none';
 };
@@ -3713,19 +3712,26 @@ window.toggleTruckTracker = function() {
     }
 };
 
-function updateDeliveryTruck(status, feedback = "") {
-    // 🚀 OMEGA FIX: Pokud Radar hlásí prázdno, ale my zrovna ukazujeme finální stav,
-    // ignorujeme to, dokud uživatel dodávku sám nezavře křížkem.
-    if ((!status || status === 'idle') && 
-        (window.LAST_SEEN_TRUCK_STATUS === 'accepted' || window.LAST_SEEN_TRUCK_STATUS === 'rejected') && 
-        !window.OMEGA_TRACKER_DISMISSED) {
+function updateDeliveryTruck(status, feedback = "", date = "") {
+    if (!status || status === 'idle') {
+        const tracker = document.getElementById('omega-truck-tracker');
+        if (tracker) tracker.style.display = 'none';
         return;
     }
 
-    if (window.LAST_SEEN_TRUCK_STATUS !== status) {
+    // 🚀 OMEGA FIX: Unikátní ID stavu (Status + Přesný čas vzniku z databáze)
+    const stateId = status + "_" + date;
+    const dismissedId = localStorage.getItem('omega_dismissed_tracker_id');
+
+    // Kontrola, zda uživatel TENTO konkrétní stav už v minulosti nezavřel
+    if (dismissedId === stateId) {
+        window.OMEGA_TRACKER_DISMISSED = true;
+    } else if (window.LAST_SEEN_TRUCK_ID !== stateId) {
+        // Změna stavu = Zrušení amnézie (Tracker se musí znovu ukázat)
         window.OMEGA_TRACKER_DISMISSED = false;
-        window.LAST_SEEN_TRUCK_STATUS = status;
     }
+
+    window.LAST_SEEN_TRUCK_ID = stateId;
 
     const tracker = document.getElementById('omega-truck-tracker');
     if (window.OMEGA_TRACKER_DISMISSED) {
@@ -3746,61 +3752,27 @@ function updateDeliveryTruck(status, feedback = "") {
 
     const activateStop = (id, color) => {
         const stop = document.getElementById(id);
-        if (stop) {
-            stop.style.color = color;
-            stop.style.textShadow = `0 0 10px ${color}`;
-        }
+        if (stop) { stop.style.color = color; stop.style.textShadow = `0 0 10px ${color}`; }
     };
 
     if (status === 'pending') {
-        tracker.style.display = 'block';
-        tracker.style.borderColor = '#f59e0b';
-        statusText.innerHTML = "Balíček je na celnici. Čeká se na audit vedení školy.";
-        statusText.style.color = "#f59e0b";
-        
-        line.style.width = '63%'; 
-        line.style.background = '#f59e0b';
-        truck.style.left = '65%'; 
-        truck.innerText = "🚚"; // Čistá dodávka
-        truck.style.transform = "translateX(-50%) scaleX(-1)"; 
-        
+        tracker.style.display = 'block'; tracker.style.borderColor = '#f59e0b';
+        statusText.innerHTML = "Balíček je na celnici. Čeká se na audit vedení školy."; statusText.style.color = "#f59e0b";
+        line.style.width = '63%'; line.style.background = '#f59e0b';
+        truck.style.left = '65%'; truck.innerText = "🚚"; truck.style.transform = "translateX(-50%) scaleX(-1)"; 
         activateStop('stop-1', '#f59e0b'); activateStop('stop-2', '#f59e0b'); activateStop('stop-3', '#f59e0b');
-    } 
-    else if (status === 'rejected') {
-        tracker.style.display = 'block';
-        tracker.style.borderColor = '#ef4444';
-        statusText.innerHTML = `❌ Zásilka vrácena. Důvod: <span style="font-weight: normal;">"${sanitize(feedback)}"</span>`;
-        statusText.style.color = "#ef4444";
-        
-        line.style.width = '0%';
-        line.style.background = '#ef4444';
-        // 🚀 Změněno z 12% na 7%, aby byla blíž u startu
-        truck.style.left = '7%'; 
-        truck.innerText = "🚐💨"; // Výfuk ponechán
-        truck.style.transform = "translateX(-50%) scaleX(1)"; 
-        
+    } else if (status === 'rejected') {
+        tracker.style.display = 'block'; tracker.style.borderColor = '#ef4444';
+        statusText.innerHTML = `❌ Zásilka vrácena. Důvod: <span style="font-weight: normal;">"${sanitize(feedback)}"</span>`; statusText.style.color = "#ef4444";
+        line.style.width = '0%'; line.style.background = '#ef4444';
+        truck.style.left = '7%'; truck.innerText = "🚐💨"; truck.style.transform = "translateX(-50%) scaleX(1)"; 
         activateStop('stop-1', '#ef4444');
-    }
-    else if (status === 'accepted') {
-        tracker.style.display = 'block';
-        tracker.style.borderColor = 'var(--accent-green)';
-        statusText.innerHTML = `✅ Publikováno! <span style="font-weight: normal; color: var(--text-main);">"${sanitize(feedback)}"</span>`;
-        statusText.style.color = "var(--accent-green)";
-        
-        line.style.width = '100%'; 
-        line.style.background = 'var(--accent-green)';
-        truck.style.left = '94%'; 
-        // 🚀 Odebrána hvězdička
-        truck.innerText = "🚚"; 
-        truck.style.transform = "translateX(-50%) scaleX(-1)"; 
-        
-        activateStop('stop-1', 'var(--accent-green)'); 
-        activateStop('stop-2', 'var(--accent-green)'); 
-        activateStop('stop-3', 'var(--accent-green)');
-        activateStop('stop-4', 'var(--accent-green)');
-    }
-    else {
-        tracker.style.display = 'none';
+    } else if (status === 'accepted') {
+        tracker.style.display = 'block'; tracker.style.borderColor = 'var(--accent-green)';
+        statusText.innerHTML = `✅ Publikováno! <span style="font-weight: normal; color: var(--text-main);">"${sanitize(feedback)}"</span>`; statusText.style.color = "var(--accent-green)";
+        line.style.width = '100%'; line.style.background = 'var(--accent-green)';
+        truck.style.left = '94%'; truck.innerText = "🚚"; truck.style.transform = "translateX(-50%) scaleX(-1)"; 
+        activateStop('stop-1', 'var(--accent-green)'); activateStop('stop-2', 'var(--accent-green)'); activateStop('stop-3', 'var(--accent-green)'); activateStop('stop-4', 'var(--accent-green)');
     }
 }
 
@@ -3853,7 +3825,7 @@ window.fetchInbox = async function() {
     try {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/list", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+            body: JSON.stringify({})
         });
         window.OMEGA_INBOX_CACHE = await res.json();
         
@@ -3934,7 +3906,7 @@ window.toggleStarInbox = async function(id) {
     try {
         fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/star", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
+            body: JSON.stringify({ msg_id: id })
         });
     } catch (e) {}
 };
@@ -3967,7 +3939,7 @@ window.stashCurrentWork = async function() {
     try {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/stash-save", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, fileContent: JSON.stringify(currentDraft) })
+            body: JSON.stringify({ fileContent: JSON.stringify(currentDraft) })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -3996,7 +3968,7 @@ window.executeStashLoad = async function() {
     try {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/stash-load", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, pin: pin })
+            body: JSON.stringify({ pin: pin })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
@@ -4094,17 +4066,6 @@ window.renderInboxContent = function(dataArray, containerId, isStarred) {
     }).join('');
 };
 
-window.toggleStarInbox = async function(id) {
-    const msg = window.OMEGA_INBOX_CACHE.find(m => m.id === id);
-    if (msg) { msg.starred = !msg.starred; fetchInbox(); } 
-    try {
-        await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/star", {
-            method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
-        });
-    } catch (e) {}
-};
-
 window.dismissInboxMessage = async function(id) {
     // 🚀 OMEGA FIX: Vymazán nehezký alert. 0ms latence.
     window.OMEGA_INBOX_CACHE = window.OMEGA_INBOX_CACHE.filter(m => m.id !== id);
@@ -4127,7 +4088,7 @@ window.dismissInboxMessage = async function(id) {
     try {
         fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/delete", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id })
+            body: JSON.stringify({ msg_id: id })
         });
     } catch (e) {}
 };
@@ -4192,7 +4153,7 @@ window.confirmInboxMerge = async function() {
         const feedbackMsg = document.getElementById('accept-idea-msg') ? document.getElementById('accept-idea-msg').value.trim() : "";
         fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/accept", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: msgId, feedback: feedbackMsg })
+            body: JSON.stringify({ msg_id: msgId, feedback: feedbackMsg })
         });
     } catch (err) {
         showToast("❌ Chyba při převzetí: " + err.message);
@@ -4341,7 +4302,7 @@ window.executeResolvedMerge = function(isFastForward = false) {
     const feedbackMsg = document.getElementById('accept-idea-msg') ? document.getElementById('accept-idea-msg').value.trim() : "";
     fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/accept", {
         method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-        body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: window.PENDING_MERGE_MSG_ID, feedback: feedbackMsg })
+        body: JSON.stringify({ msg_id: window.PENDING_MERGE_MSG_ID, feedback: feedbackMsg })
     }).catch(e => {});
 };
 
@@ -4361,7 +4322,7 @@ window.executeIdeaReject = async function() {
     try {
         await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/inbox/reject", {
             method: "POST", headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password, msg_id: id, feedback: feedback })
+            body: JSON.stringify({ msg_id: id, feedback: feedback })
         });
         fetchInbox(); 
     } catch (e) {}
@@ -4389,8 +4350,6 @@ window.executeDraftApi = async function(endpoint, extraData) {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
             body: JSON.stringify({ 
-                admin_username: sessionCredentials.username, 
-                admin_password: sessionCredentials.password,
                 ...extraData
             })
         });
@@ -4431,17 +4390,19 @@ window.checkSystemStatus = async function() {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/status", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ admin_username: sessionCredentials.username, admin_password: sessionCredentials.password })
+            body: JSON.stringify({})
         });
         const data = await res.json();
         const user = sessionCredentials.username.toLowerCase();
         
         let visualStatus = data.status;
         let visualFeedback = data.feedback;
+        let visualDate = data.date; // 🚀 Nová proměnná (Čas události z Cloudflaru)
 
         if (data.userFeedback) {
             visualStatus = data.userFeedback.status; // Nastaví 'accepted' nebo 'rejected'
             visualFeedback = data.userFeedback.feedback;
+            visualDate = data.userFeedback.date; // 🚀 Propíšeme čas feedbacku
             // 🔔 OMEGA NOTIFIKACE: Subjektivní zpráva pro autora nápadu
             const msg = data.userFeedback.status === 'accepted' ? "Nápad přijat!" : "Nápad zamítnut!";
             window.triggerBrowserNotification(msg);
@@ -4486,7 +4447,7 @@ window.checkSystemStatus = async function() {
 
         // 🚀 OMEGA FIX: Tracker vizualizuje stavy pro Vedoucího
         if (user === 'vedouci' || user === 'omega') {
-            updateDeliveryTruck(visualStatus, visualFeedback);
+            updateDeliveryTruck(visualStatus, visualFeedback, visualDate);
             if (typeof window.fetchInbox === 'function') window.fetchInbox();
         }
 
@@ -4624,10 +4585,8 @@ window.saveOmegaProfile = async function() {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
             body: JSON.stringify({ 
-                admin_username: auth.username, // 🚀 Bezpečně vytaženo z Auth objektu
-                admin_password: auth.password,
-                profile: { email, notifications: enabled }
-            })
+            profile: { email, notifications: enabled }
+        })
         });
         if (!res.ok) throw new Error("Chyba serveru");
         showToast("✅ Nastavení profilu uloženo.");
@@ -4643,10 +4602,7 @@ window.loadOmegaProfile = async function() {
         const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/profile/get", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ 
-                admin_username: auth.username, 
-                admin_password: auth.password 
-            })
+            body: JSON.stringify({})
         });
         const data = await res.json();
         if (data.profile) {
@@ -4654,4 +4610,15 @@ window.loadOmegaProfile = async function() {
             document.getElementById('profile-email-toggle').checked = data.profile.notifications || false;
         }
     } catch (e) { console.warn("Nepodařilo se načíst profil", e); }
+};
+window.logoutOmega = function() {
+    sessionStorage.removeItem('omega_session_token');
+    sessionStorage.removeItem('omega_active_user');
+    
+    // 🚀 OMEGA FIX: Vyčištění obou paměťových rovin
+    sessionCredentials.username = ""; 
+    window.sessionCredentials = null;
+    
+    showToast("🔒 Bezpečně odhlášeno. Propustka zničena.");
+    setTimeout(() => { window.location.reload(); }, 1000);
 };
