@@ -4791,3 +4791,61 @@ window.logoutOmega = function() {
     showToast("🔒 Bezpečně odhlášeno. Propustka zničena.");
     setTimeout(() => { window.location.reload(); }, 1000);
 };
+
+// ==========================================
+// 📖 OMEGA SOP (Standard Operating Procedure) ENGINE
+// ==========================================
+
+window.openOmegaManual = function() {
+    // Zde načítáš svou stavovou proměnnou. Uprav si klíč podle toho, jak ho reálně ukládáš.
+    // Pro ukázku počítám, že v sessionStorage je uložen např. 'ucitel', 'vedouci', nebo 'admin'.
+    const activeUserRole = sessionStorage.getItem('omega_active_user') || 'ucitel'; 
+
+    const modal = document.getElementById('omega-manual-modal');
+    if (!modal) return;
+
+    // Získání DOM elementů jednotlivých sekcí
+    const l1 = document.getElementById('sop-l1-ucitel');
+    const l2 = document.getElementById('sop-l2-vedouci');
+    const l3 = document.getElementById('sop-l3-admin');
+
+    // Reset stylů (vše ztlumíme na 40% a zmenšíme scale)
+    [l1, l2, l3].forEach(el => {
+        if(el) {
+            el.style.opacity = '0.4';
+            el.style.transform = 'scale(0.98)';
+            el.style.filter = 'grayscale(80%)';
+            el.style.transition = 'all 0.3s ease';
+            el.style.order = '2'; // Neaktivní půjdou dolů
+        }
+    });
+
+    // Zvýraznění aktivní role a posun nahoru
+    const highlight = (el) => {
+        if (!el) return;
+        el.style.opacity = '1';
+        el.style.transform = 'scale(1)';
+        el.style.filter = 'none';
+        el.style.order = '1'; // Aktivní role skočí na první místo
+        // 🚀 OMEGA FIX: Dynamické navázání na barvu tématu pro rámeček a záři
+        el.style.borderColor = 'var(--accent-primary, var(--accent-rust))';
+        el.style.boxShadow = '0 10px 30px -10px color-mix(in srgb, var(--accent-primary) 40%, transparent)';
+    };
+
+    // Aplikace logiky na základě activeUser
+    if (activeUserRole.includes('vedouci')) {
+        highlight(l2);
+    } else if (activeUserRole.includes('vedeni')) {
+        highlight(l3);
+    } else {
+        // Fallback na řadového člena (ucitel)
+        highlight(l1);
+    }
+
+    // Aby fungovalo přeskupování (order), musíme kontejner nastavit na Flex
+    const container = l1.parentElement;
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+
+    modal.style.display = 'flex';
+};

@@ -279,6 +279,10 @@
                     ⚙️ Nastavení profilu
                 </button>
 
+                <button onclick="openOmegaManual()" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.color='var(--accent-primary)'; this.style.borderColor='var(--accent-primary)';" onmouseout="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)';">
+                    <span style="font-size: 1.1em; opacity: 0.8;">📖</span> <strong>Manuál systému</strong>
+                </button>
+
                 <button id="btn-master-admin" onclick="document.getElementById('omega-user-modal').style.display='flex'" style="display: none; background: rgba(89, 166, 122, 0.1); border: 1px solid var(--accent-primary); color: var(--accent-primary); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; transition: 0.2s; white-space: nowrap;" onmouseover="this.style.background='var(--accent-primary)'; this.style.color='white';" onmouseout="this.style.background='rgba(89, 166, 122, 0.1)'; this.style.color='var(--accent-primary)';">
                     👥 Přidat učitele
                 </button>
@@ -929,6 +933,122 @@
                 </button>
                 <button onclick="executeSystemUpdate()" style="background: #ef4444; border: none; color: white; font-weight: bold; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
                     🔄 RESTARTOVAT NYNÍ
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="omega-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 25000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 850px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            
+            <div style="padding: 20px 25px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    📚 Standardní operační postupy
+                </h2>
+                <button onclick="document.getElementById('omega-manual-modal').style.display='none'" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+            </div>
+
+            <div style="padding: 25px; overflow-y: auto; color: var(--text-main); font-size: 0.95rem; line-height: 1.6;">
+                <div style="display: flex; flex-direction: column; gap: 15px;" id="sop-container">
+                    
+                    <div id="sop-l1-ucitel" style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-surface);">
+                        <div style="background: color-mix(in srgb, var(--accent-primary) 8%, transparent); padding: 15px 20px; border-bottom: 1px solid var(--border); color: var(--accent-primary); font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.3rem;">📝</span> L1: Člen katedry ČJL (Příprava návrhu)
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-base);">
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">1</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Úprava a řazení</strong>
+                                    <span style="color: var(--text-muted);">Pro změnu textu klikněte do buňky. Pořadí měníte tažením za ikonu <span style="opacity: 0.6;">☰</span> vlevo.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">2</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Přerušení práce (PIN)</strong>
+                                    <span style="color: var(--text-muted);">Pokud potřebujete odejít, klikněte na <em>"Odložit práci na později"</em>. Systém vám vygeneruje osobní kód pro bezpečný návrat.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="background: var(--accent-primary); color: var(--bg-surface); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; box-shadow: 0 0 10px color-mix(in srgb, var(--accent-primary) 50%, transparent);">3</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Odeslání hotové práce</strong>
+                                    <span style="color: var(--text-muted);">Jakmile jste s úpravami spokojeni, klikněte dole na tlačítko <em>"Odeslat nápady"</em>. Návrh přistane u vedoucí(ho).</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="sop-l2-vedouci" style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-surface);">
+                        <div style="background: color-mix(in srgb, var(--accent-primary) 8%, transparent); padding: 15px 20px; border-bottom: 1px solid var(--border); color: var(--accent-primary); font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.3rem;">⚖️</span> L2: Vedoucí katedry (Revize a Slučování)
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-base);">
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">1</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Příjem návrhů</strong>
+                                    <span style="color: var(--text-muted);">V horním menu sledujte ikonu <em>"Pošta"</em>. Zde se hromadí odeslané nápady od členů katedry.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">2</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Mergování (Slučování)</strong>
+                                    <span style="color: var(--text-muted);">Při převzetí nápadu systém analyzuje rozdíly. V případě konfliktu vyvolá okno pro manuální vyřešení.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">3</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Audit log</strong>
+                                    <span style="color: var(--text-muted);">V záložce <em>"Provedené změny"</em> uvidíte exaktní vizualizaci toho, jak bude seznam po vašich zásazích vypadat.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="background: var(--accent-primary); color: var(--bg-surface); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; box-shadow: 0 0 10px color-mix(in srgb, var(--accent-primary) 50%, transparent);">4</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Předání Vedení</strong>
+                                    <span style="color: var(--text-muted);">Finálně vyladěný seznam odešlete kliknutím na tlačítko dole do "Celnice" ke schválení vedením školy.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="sop-l3-admin" style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-surface);">
+                        <div style="background: color-mix(in srgb, var(--accent-primary) 8%, transparent); padding: 15px 20px; border-bottom: 1px solid var(--border); color: var(--accent-primary); font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 1.3rem;">🏛️</span> L3: Vedení školy (Finální schválení)
+                        </div>
+                        <div style="padding: 20px; background: var(--bg-base);">
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">1</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Čekající návrhy</strong>
+                                    <span style="color: var(--text-muted);">Návrhy z katedry uvidíte v "Celnici" hned po přihlášení, včetně detailního výpisu fyzických změn (přidáno, smazáno, upraveno).</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
+                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">2</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Zamítnutí (Veto)</strong>
+                                    <span style="color: var(--text-muted);">Pokud seznam nesplňuje normy, můžete jej jedním kliknutím vrátit vedoucímu k přepracování s přiloženou poznámkou.</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 15px; align-items: flex-start;">
+                                <div style="background: var(--accent-primary); color: var(--bg-surface); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; box-shadow: 0 0 10px color-mix(in srgb, var(--accent-primary) 50%, transparent);">3</div>
+                                <div style="line-height: 1.5; font-size: 0.95rem;">
+                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Schválení a Publikace</strong>
+                                    <span style="color: var(--text-muted);">Potvrzením se databáze nevratně přepíše na hlavní doméně aplikace a změna se okamžitě propíše všem studentům.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="padding: 15px 25px; border-top: 1px solid var(--border); text-align: right; background: var(--bg-base); border-radius: 0 0 12px 12px;">
+                <button onclick="document.getElementById('omega-manual-modal').style.display='none'" class="btn" style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 10px 25px; font-weight: bold;">
+                    Rozumím, zavřít
                 </button>
             </div>
         </div>
