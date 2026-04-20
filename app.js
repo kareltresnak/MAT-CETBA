@@ -1432,8 +1432,57 @@ window.generateDiffHtml = function(draftDb) {
         return "<div style='color: var(--text-muted); font-style: italic; font-size: 0.85rem;'>Žádné fyzické změny. Databáze je identická.</div>";
     } 
 
-    if (analysis.added.length > 0) html += `<div style="color: var(--accent-green); font-size: 0.85rem;"><strong>➕ Přidáno (${analysis.added.length}):</strong> ${analysis.added.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
-    if (analysis.deleted.length > 0) html += `<div style="color: var(--accent-red); font-size: 0.85rem; margin-top: 4px;"><strong>🗑️ Odebráno (${analysis.deleted.length}):</strong> ${analysis.deleted.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
+    if (analysis.added.length > 0) {
+        const addedText = analysis.added.map(k => 
+            `<div style="margin-bottom: 6px; padding-left: 10px; border-left: 2px solid #10b981;">
+                <strong style="color: var(--text-main);">${sanitize(k.dilo)}</strong> 
+                <span style="color: var(--text-muted); font-size: 0.9em;">(${sanitize(k.autor)})</span>
+            </div>`
+        ).join('');
+
+        const isCollapsed = analysis.added.length > 2;
+        const displayState = isCollapsed ? 'none' : 'block';
+        const iconState = isCollapsed ? '▼ Zobrazit detaily' : '▲ Skrýt detaily';
+
+        html += `
+        <div style="margin-top: 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; overflow: hidden;">
+            <div onclick="const b = this.nextElementSibling; const i = this.querySelector('.toggle-icon'); if(b.style.display==='none'){b.style.display='block';i.textContent='▲ Skrýt detaily';}else{b.style.display='none';i.textContent='▼ Zobrazit detaily';}" 
+                 style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;"
+                 onmouseover="this.style.background='rgba(16, 185, 129, 0.1)'" onmouseout="this.style.background='transparent'">
+                <strong style="color: #10b981; font-size: 0.85rem;">➕ Přidaná díla (${analysis.added.length})</strong>
+                <span class="toggle-icon" style="color: #10b981; font-size: 0.75rem; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; font-weight: bold;">${iconState}</span>
+            </div>
+            <div style="display: ${displayState}; padding: 0 12px 10px 12px; border-top: 1px dashed rgba(16, 185, 129, 0.2); margin-top: 2px; padding-top: 12px;">
+                ${addedText}
+            </div>
+        </div>`;
+    }
+    
+    if (analysis.deleted.length > 0) {
+        const deletedText = analysis.deleted.map(k => 
+            `<div style="margin-bottom: 6px; padding-left: 10px; border-left: 2px solid #ef4444;">
+                <strike style="color: var(--text-muted);"><strong style="color: #ef4444;">${sanitize(k.dilo)}</strong></strike> 
+                <span style="color: var(--text-muted); font-size: 0.9em;">(${sanitize(k.autor)})</span>
+            </div>`
+        ).join('');
+
+        const isCollapsed = analysis.deleted.length > 2;
+        const displayState = isCollapsed ? 'none' : 'block';
+        const iconState = isCollapsed ? '▼ Zobrazit detaily' : '▲ Skrýt detaily';
+
+        html += `
+        <div style="margin-top: 12px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px; overflow: hidden;">
+            <div onclick="const b = this.nextElementSibling; const i = this.querySelector('.toggle-icon'); if(b.style.display==='none'){b.style.display='block';i.textContent='▲ Skrýt detaily';}else{b.style.display='none';i.textContent='▼ Zobrazit detaily';}" 
+                 style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;"
+                 onmouseover="this.style.background='rgba(239, 68, 68, 0.1)'" onmouseout="this.style.background='transparent'">
+                <strong style="color: #ef4444; font-size: 0.85rem;">🗑️ Smazaná díla (${analysis.deleted.length})</strong>
+                <span class="toggle-icon" style="color: #ef4444; font-size: 0.75rem; background: rgba(239, 68, 68, 0.15); padding: 4px 8px; border-radius: 4px; font-weight: bold;">${iconState}</span>
+            </div>
+            <div style="display: ${displayState}; padding: 0 12px 10px 12px; border-top: 1px dashed rgba(239, 68, 68, 0.2); margin-top: 2px; padding-top: 12px;">
+                ${deletedText}
+            </div>
+        </div>`;
+    }
     
     if (analysis.edited.length > 0) {
         const editedText = analysis.edited.map(k => {
