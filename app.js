@@ -149,7 +149,7 @@ window.executeOmegaUpdate = function() {
 /* ==========================================
    OMEGA TELEMETRY ENGINE
    ========================================== */
-const OMEGA_VERSION = '9.2.1';
+const OMEGA_VERSION = '9.3.0';
 
 function trackOmegaEvent(eventName, eventData = {}) {
     if (typeof umami !== 'undefined') {
@@ -1350,8 +1350,13 @@ window.analyzeDraftChanges = function(draftDb) {
         
         // 2. 🚀 OMEGA DNA FALLBACK: Pokud učitel přepsal název, spárujeme bezpečně přes DNA stopu
         if (!prodMatch) {
-            const targetId = draftBook.origId || (draftBook._original ? draftBook._original.id : draftBook.id);
-            prodMatch = prodDb.find(p => p.id === targetId);
+            // Zabráníme krádeži identity u nově přidaných děl
+            if (draftBook.origId === null) {
+                prodMatch = null;
+            } else {
+                const targetId = draftBook.origId || (draftBook._original ? draftBook._original.id : draftBook.id);
+                prodMatch = prodDb.find(p => p.id === targetId);
+            }
         }
 
         return {
@@ -1418,7 +1423,6 @@ window.analyzeDraftChanges = function(draftDb) {
     return { added, deleted, edited, manuallyMoved, cascadeMoved, prodDb };
 };
 
-// 🚀 OMEGA TEXT ENGINE: Výpis do modálů
 // 🚀 OMEGA TEXT ENGINE: Výpis do modálů s DNA stopou
 window.generateDiffHtml = function(draftDb) {
     const analysis = window.analyzeDraftChanges(draftDb);
@@ -1459,6 +1463,12 @@ window.generateDiffHtml = function(draftDb) {
                         <span style="font-size: 0.85em; color: var(--text-muted); line-height: 1.4;">${changes.join('<br>')}</span>
                     </div>`;
         }).join('');
+
+        // 🚀 OMEGA UX FIX: Smart Toggle (Více než 2 úpravy se automaticky sbalí do interaktivního bloku)
+        const isCollapsed = analysis.edited.length > 2;
+        const displayState = isCollapsed ? 'none' : 'block';
+        const iconState = isCollapsed ? '▼ Zobrazit detaily' : '▲ Skrýt detaily';
+
         html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 10px;"><strong>✏️ Detailní úpravy (${analysis.edited.length}):</strong><div style="margin-top: 8px;">${editedText}</div></div>`;
     }
 
@@ -3096,9 +3106,14 @@ window.prepareDatabaseExport = async function() {
     adminVirtualDb.forEach(book => {
         if (!book._isDeleted) {
             book._finalId = counter; // 🚀 INJEKCE PRO DETAILNÍ AUDIT LOG
+
+            // 🚀 OMEGA FIX: Zabráníme krádeži identity (Nové dílo nesmí zdědit ID cizí knihy)
+            let exportOrigId = book.origId || (book._original ? book._original.id : book.id);
+            if (book._isAdded) exportOrigId = null;
+
             newDb.push({
                 id: counter++,
-                origId: book.origId || (book._original ? book._original.id : book.id),
+                origId: exportOrigId,
                 dilo: sanitize(book.dilo), 
                 autor: sanitize(book.autor),
                 druh: book.druh, 
@@ -4264,26 +4279,35 @@ window.dismissInboxMessage = async function(id) {
 
 // 🚀 OMEGA RECONSTRUCTOR: Propárování cizích dat na originál (Nutné pro LIS Algoritmus)
 window.reconstructVirtualDbFromDraft = function(draftDb) {
-    // FIX: Zde se původní databázi dodají IDčka, aby měl algoritmus podle čeho počítat osy
     const prodDb = window.OMEGA_CONFIG.KNIHY_DB.map((k, i) => ({...k, id: i + 1}));
     adminVirtualDb = [];
 
     draftDb.forEach((k, idx) => {
-        const orig = prodDb.find(prodBook => prodBook.dilo.toLowerCase().trim() === k.dilo.toLowerCase().trim());
+        // 1. Zkusíme název
+        let orig = prodDb.find(prodBook => prodBook.dilo.toLowerCase().trim() === k.dilo.toLowerCase().trim());
+        
+        // 2. OMEGA DNA FALLBACK (Jen pro existující knihy)
+        if (!orig && k.origId !== null) {
+            orig = prodDb.find(p => p.id === (k.origId || k.id));
+        }
+
+        const isReallyAdded = k.origId === null || (!orig && k.origId === null);
+
         adminVirtualDb.push({
             ...k,
             id: idx + 1,
             _isDeleted: false,
-            _isAdded: !orig,
+            _isAdded: isReallyAdded,
             _isEdited: false,
             _uid: Math.random().toString(36).substr(2, 9),
             _original: orig || {...k, id: idx + 1} 
         });
     });
 
+    // Která z produkce chybí v draftu? (Nesmazali jsme je už?)
     prodDb.forEach(prodBook => {
-        const existsInDraft = draftDb.find(draftBook => draftBook.dilo.toLowerCase().trim() === prodBook.dilo.toLowerCase().trim());
-        if (!existsInDraft) {
+        const isUsed = adminVirtualDb.find(v => v._original && v._original.id === prodBook.id);
+        if (!isUsed) {
             adminVirtualDb.push({
                 ...prodBook,
                 _isDeleted: true,
@@ -4295,7 +4319,6 @@ window.reconstructVirtualDbFromDraft = function(draftDb) {
         }
     });
 
-    // Spustí LIS algoritmus a rozzáří barvy
     if (typeof window.adminEvaluateChanges === 'function') window.adminEvaluateChanges();
     if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
     if (typeof window.renderAdminSummary === 'function') window.renderAdminSummary();
@@ -4670,7 +4693,7 @@ window.checkSystemStatus = async function() {
                     emptyState.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: rgba(52, 152, 219, 0.05); border: 1px dashed var(--accent-primary-light); border-radius: 8px; margin-bottom: 20px;">
                         <div style="font-size: 2.5rem; margin-bottom: 10px; opacity: 0.8;">☕</div>
                         <h3 style="margin: 0 0 5px 0; color: var(--accent-primary);">Vše je aktuální</h3>
-                        <p style="margin: 0; font-size: 0.9rem;">Momentálně nečekají žádné návrhy komise na schválení.</p>
+                        <p style="margin: 0; font-size: 0.9rem;">Momentálně nečekají žádné návrhy katedry ČJL na schválení.</p>
                     </div>`;
                     approvalForm.parentNode.insertBefore(emptyState, approvalForm);
                 }
