@@ -149,7 +149,7 @@ window.executeOmegaUpdate = function() {
 /* ==========================================
    OMEGA TELEMETRY ENGINE
    ========================================== */
-const OMEGA_VERSION = '9.2.0';
+const OMEGA_VERSION = '9.2.1';
 
 function trackOmegaEvent(eventName, eventData = {}) {
     if (typeof umami !== 'undefined') {
@@ -2479,7 +2479,7 @@ async function enterAdminUI(userRole) {
 
         // 🚀 OMEGA RBAC: Izolace UI prvků
         if (activeUser !== 'vedeni' && activeUser !== 'omega' && activeUser !== 'vedouci') {
-            // PDF Editor vidí jen Vedení a Omega
+            // PDF Editor vidí jen Vedení, Vedoucí a Omega
             const pdfBtn = document.querySelector('button[onclick="openAdminPdfEditor()"]');
             if (pdfBtn) pdfBtn.style.display = 'none';
             // 🚀 OMEGA FIX: Odstranění "Disaster Recovery" (Obnova ze zálohy) přes vyhledání nadpisu
@@ -2495,7 +2495,14 @@ async function enterAdminUI(userRole) {
             const recoveryDiv = document.querySelector('div[style*="margin-top: 3rem"]');
             if (recoveryDiv) recoveryDiv.style.display = 'none';
         }
-
+        if (activeUser === 'vedouci') {
+            // 🚀 OMEGA FIX: Odstranění "Disaster Recovery" (Obnova ze zálohy) přes vyhledání nadpisu
+            const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
+            const recoveryH = recoveryHeaders.find(h => h.textContent.includes('Obnova ze zálohy'));
+            if (recoveryH && recoveryH.parentElement) {
+                recoveryH.parentElement.style.display = 'none';
+            }
+        }
         if (typeof window.startIdleTimer === 'function') window.startIdleTimer();
         if (typeof window.checkSystemStatus === 'function') window.checkSystemStatus();
         // 🚀 OMEGA LIVE RADAR: Spustí polling stavu dodávky každých 15 sekund
