@@ -149,7 +149,7 @@ window.executeOmegaUpdate = function() {
 /* ==========================================
    OMEGA TELEMETRY ENGINE
    ========================================== */
-const OMEGA_VERSION = '9.0.0';
+const OMEGA_VERSION = '9.2.0';
 
 function trackOmegaEvent(eventName, eventData = {}) {
     if (typeof umami !== 'undefined') {
@@ -2478,7 +2478,7 @@ async function enterAdminUI(userRole) {
         }
 
         // 🚀 OMEGA RBAC: Izolace UI prvků
-        if (activeUser !== 'vedeni' && activeUser !== 'omega') {
+        if (activeUser !== 'vedeni' && activeUser !== 'omega' && activeUser !== 'vedouci') {
             // PDF Editor vidí jen Vedení a Omega
             const pdfBtn = document.querySelector('button[onclick="openAdminPdfEditor()"]');
             if (pdfBtn) pdfBtn.style.display = 'none';
@@ -3210,7 +3210,7 @@ window.prepareDatabaseExport = async function() {
 
         // Zápis do lokální instance changelogu (Komentář už neukládáme jako vizuální prvek)
         adminChangelogDb.unshift({
-            type: 'db', version: `Revize databáze (${appVer})`, date: today, notes: notes
+            type: 'db', version: `Revize databáze (${OMEGA_VERSION})`, date: today, notes: notes
         });
 
         const finalExportPayload = `// =====================================================================
