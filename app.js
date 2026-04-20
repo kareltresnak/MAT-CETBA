@@ -1469,7 +1469,18 @@ window.generateDiffHtml = function(draftDb) {
         const displayState = isCollapsed ? 'none' : 'block';
         const iconState = isCollapsed ? '▼ Zobrazit detaily' : '▲ Skrýt detaily';
 
-        html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 10px;"><strong>✏️ Detailní úpravy (${analysis.edited.length}):</strong><div style="margin-top: 8px;">${editedText}</div></div>`;
+        html += `
+        <div style="margin-top: 12px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px; overflow: hidden;">
+            <div onclick="const b = this.nextElementSibling; const i = this.querySelector('.toggle-icon'); if(b.style.display==='none'){b.style.display='block';i.textContent='▲ Skrýt detaily';}else{b.style.display='none';i.textContent='▼ Zobrazit detaily';}" 
+                 style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;"
+                 onmouseover="this.style.background='rgba(245, 158, 11, 0.1)'" onmouseout="this.style.background='transparent'">
+                <strong style="color: #f59e0b; font-size: 0.85rem;">✏️ Detailní úpravy (${analysis.edited.length})</strong>
+                <span class="toggle-icon" style="color: #f59e0b; font-size: 0.75rem; background: rgba(245, 158, 11, 0.15); padding: 4px 8px; border-radius: 4px; font-weight: bold;">${iconState}</span>
+            </div>
+            <div style="display: ${displayState}; padding: 0 12px 10px 12px; border-top: 1px dashed rgba(245, 158, 11, 0.2); margin-top: 2px; padding-top: 12px;">
+                ${editedText}
+            </div>
+        </div>`;
     }
 
     if (analysis.manuallyMoved.length > 0) html += `<div style="color: #f59e0b; font-size: 0.85rem; margin-top: 4px;"><strong>↕️ Manuálně přesunuto (${analysis.manuallyMoved.length}):</strong> ${analysis.manuallyMoved.map(k=> sanitize(k.dilo)).join(', ')}</div>`;
