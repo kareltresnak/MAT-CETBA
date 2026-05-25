@@ -1,4 +1,4 @@
-const VERSION = '9.3.2';
+const VERSION = '10.0.0';
 const CACHE_NAME = `SPS_Selekce_MAT_CETBY_v${VERSION}`; 
 
 // 🚀 OMEGA FIX: Dynamický Cache-Busting (Obejití HTTP Cache prohlížeče)
@@ -22,8 +22,6 @@ self.addEventListener('install', (event) => {
                 console.log('[Service Worker] Přednačítání offline dat');
                 return cache.addAll(ASSETS_TO_CACHE);
             })
-        // ❌ TOTO SMAŽ: .then(() => self.skipWaiting()) 
-        // Nový SW nyní uvízne ve stavu "waiting" a nerozbije aktuální relaci.
     );
 });
 
