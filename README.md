@@ -10,8 +10,6 @@ Profesionální portfolio projektů zaměřených na distribuované systémy, kr
 * [🏛️ Institucionální Edice (SPŠPB)](https://kareltresnak.github.io/MAT-CETBA/?theme=spspb) – Plný branding; persistentní UI kotva.
 * [🦀 Rust Edition](https://kareltresnak.github.io/MAT-CETBA/?theme=default) – High-contrast estetika; branding-on-demand.
 
-**Repozitář:** [📂 Zdrojový kód](https://github.com/kareltresnak/MAT-CETBA)
-
 OMEGA v9.0.0 není pouhým generátorem seznamů; je to **kolaborativní platforma s 3-Way Merge enginem**, postavená na distribuované infrastruktuře (PWA + Cloudflare Workers). Verze 9.0.0 integruje pokročilou teorii grafů pro synchronizaci dat mezi více editory bez rizika kolize.
 
 ### 🏛️ Architektura a Algoritmizace (LIS Engine)
