@@ -2404,6 +2404,9 @@ window.adminSelectCustomOption = function(uid, field, val, label, isAddForm) {
 window.OMEGA_SAFE_EXIT = false; 
 
 const checkForUnsavedChanges = () => {
+    // 🚀 OMEGA FIX: Pokud to učitel zrovna uložil do konceptů, necháme ho odejít
+    if (window.OMEGA_STAGING_SAVED) return false;
+    
     if (!adminVirtualDb || adminVirtualDb.length === 0) return false;
     return adminVirtualDb.some(k => k._isAdded || k._isDeleted || (k._isEdited && !k._isDeleted));
 };
@@ -2468,7 +2471,7 @@ async function enterAdminUI(userRole) {
     document.body.style.setProperty('overflow-y', 'auto', 'important');
     document.body.style.setProperty('padding-bottom', '0', 'important');
     
-    if (authModalNode) authModalNode.style.display = 'none';
+    if (typeof authModalNode !== 'undefined' && authModalNode) authModalNode.style.display = 'none';
 
     // 🚀 OMEGA FIX: Zabití Lock Modálu (Odstranění neprůhledné zdi)
     const lockModal = document.getElementById('omega-lock-modal');
@@ -2486,60 +2489,14 @@ async function enterAdminUI(userRole) {
         
         const activeUser = sessionCredentials.username.toLowerCase();
 
-        // 🚀 OMEGA UX: Kontextové hlavní tlačítko pro export
-        const saveBtn = document.querySelector('button[onclick="prepareDatabaseExport()"]');
-        if (saveBtn) {
-            if (activeUser === 'omega') saveBtn.innerHTML = '💾 Uložit změny a přepsat databázi';
-            else if (activeUser === 'vedouci') saveBtn.innerHTML = '📩 Odeslat návrh ke schválení';
-            else saveBtn.innerHTML = '💡 Odeslat nápady vedoucí(mu) katedry';
-        }
-
         // 🚀 OMEGA UX: Schránka pro vedoucí a Omegu
-        // 🚀 OMEGA UX: Schránka pro vedoucí a Omegu
+        const inboxBtn = document.getElementById('btn-admin-inbox');
+        const starredBtn = document.getElementById('btn-admin-starred');
+        const masterBtn = document.getElementById('btn-master-admin');
         if (activeUser === 'vedouci' || activeUser === 'omega') {
-            const inboxBtn = document.getElementById('btn-admin-inbox');
-            const starredBtn = document.getElementById('btn-admin-starred');
-            const masterBtn = document.getElementById('btn-master-admin');
             if (inboxBtn) inboxBtn.style.display = 'block';
             if (starredBtn) starredBtn.style.display = 'block';
             if (masterBtn) masterBtn.style.display = 'block';
-        }
-
-        // 🚀 OMEGA RBAC: Protokol pro vedení školy
-        if (activeUser === 'vedeni') {
-            // Skryje staré prvky UI
-            ['#tab-add', '#tab-edit', '#tab-summary', '#tab-changelog'].forEach(sel => {
-                const el = document.querySelector(sel);
-                if (el) el.style.display = 'none';
-            });
-            ['#admin-form-add', '#admin-form-edit', '#admin-form-summary', '#admin-form-changelog'].forEach(sel => {
-                const el = document.querySelector(sel);
-                if (el) el.style.display = 'none';
-            });
-            
-            if (saveBtn) saveBtn.style.display = 'none';
-            const tsExport = document.getElementById('ts-status-export')?.parentElement;
-            if (tsExport) tsExport.style.display = 'none';
-
-            // 🚀 OMEGA UX: Nemilosrdně zničíme ošklivý šedý obdélník pro Vedení
-            const editorContainerWrapper = document.getElementById('tab-add')?.closest('div[style*="background: var(--bg-surface)"]');
-            if (editorContainerWrapper) editorContainerWrapper.style.display = 'none';
-            
-            // Instrukce pro Vedení
-            const desc = document.querySelector('#omega-admin-portal p');
-            if (desc) desc.textContent = "Přihlášen režim: Audit a schvalování maturitních seznamů.";
-
-            // 🚀 OMEGA FIX: Vymazání nesmyslného textu "Změny provádějte..."
-            Array.from(document.querySelectorAll('#omega-admin-portal p')).forEach(p => {
-                if (p.textContent.includes('Změny provádějte')) p.style.display = 'none';
-            });
-
-            // 🚀 OMEGA FIX: Odstranění "Disaster Recovery" (Obnova ze zálohy) přes vyhledání nadpisu
-            const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
-            const recoveryH = recoveryHeaders.find(h => h.textContent.includes('Obnova ze zálohy'));
-            if (recoveryH && recoveryH.parentElement) {
-                recoveryH.parentElement.style.display = 'none';
-            }
         }
 
         if (activeUser === 'omega') {
@@ -2547,41 +2504,51 @@ async function enterAdminUI(userRole) {
             if (changelogTab) changelogTab.style.display = 'block'; 
         }
 
-        // 🚀 OMEGA RBAC: Izolace UI prvků
-        if (activeUser !== 'vedeni' && activeUser !== 'omega' && activeUser !== 'vedouci') {
-            // PDF Editor vidí jen Vedení, Vedoucí a Omega
-            const pdfBtn = document.querySelector('button[onclick="openAdminPdfEditor()"]');
+        // 🚀 OMEGA RBAC: Izolace UI prvků s O(1) determinismem
+        const btnInbox = document.getElementById('btn-action-inbox');
+        const gridL2Top = document.getElementById('grid-action-l2-top'); // 🚀 FIX: Nové ID pro horní řadu
+        const btnCommitL2 = document.getElementById('btn-commit-l2');    // 🚀 FIX: Nové ID pro ostrou produkci
+        const oboryBtn = document.getElementById('btn-save-obory');
+        const pdfBtn = document.getElementById('btn-open-pdf');
+        
+        // Dynamické vyhledání bloku Disaster Recovery
+        const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
+        const recoveryH = recoveryHeaders.find(h => h.textContent.includes('Obnova ze zálohy'));
+        const recoveryDiv = recoveryH ? recoveryH.parentElement : null;
+
+        if (activeUser !== 'omega' && activeUser !== 'vedouci') {
+            if (btnInbox) btnInbox.style.display = 'block';
+            if (gridL2Top) gridL2Top.style.display = 'none';
+            if (btnCommitL2) btnCommitL2.style.display = 'none';
+            if (oboryBtn) oboryBtn.style.display = 'none';
             if (pdfBtn) pdfBtn.style.display = 'none';
-            // 🚀 OMEGA FIX: Odstranění "Disaster Recovery" (Obnova ze zálohy) přes vyhledání nadpisu
-            const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
-            const recoveryH = recoveryHeaders.find(h => h.textContent.includes('Obnova ze zálohy'));
-            if (recoveryH && recoveryH.parentElement) {
-                recoveryH.parentElement.style.display = 'none';
-            }
+            if (recoveryDiv) recoveryDiv.style.display = 'none';
+        } else if (activeUser === 'vedouci') {
+            if (btnInbox) btnInbox.style.display = 'none';
+            if (gridL2Top) gridL2Top.style.display = 'grid';
+            if (btnCommitL2) btnCommitL2.style.display = 'block';
+            if (oboryBtn) oboryBtn.style.display = 'inline-block'; // 🚀 FIX: Odkrytí tlačítka oborů
+            if (pdfBtn) pdfBtn.style.display = 'block';
+            if (recoveryDiv) recoveryDiv.style.display = 'none'; 
+        } else if (activeUser === 'omega') {
+            if (btnInbox) btnInbox.style.display = 'none';
+            if (gridL2Top) gridL2Top.style.display = 'grid';
+            if (btnCommitL2) btnCommitL2.style.display = 'block';
+            if (oboryBtn) oboryBtn.style.display = 'inline-block';
+            if (pdfBtn) pdfBtn.style.display = 'block';
+            if (recoveryDiv) recoveryDiv.style.display = 'block';
         }
 
-        // Běžní učitelé nemají přístup k Disaster Recovery, ale ukládat (navrhovat) mohou
-        if (activeUser !== 'vedouci' && activeUser !== 'omega' && activeUser !== 'vedeni') {
-            const recoveryDiv = document.querySelector('div[style*="margin-top: 3rem"]');
-            if (recoveryDiv) recoveryDiv.style.display = 'none';
-        }
-        if (activeUser === 'vedouci') {
-            // 🚀 OMEGA FIX: Odstranění "Disaster Recovery" (Obnova ze zálohy) přes vyhledání nadpisu
-            const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
-            const recoveryH = recoveryHeaders.find(h => h.textContent.includes('Obnova ze zálohy'));
-            if (recoveryH && recoveryH.parentElement) {
-                recoveryH.parentElement.style.display = 'none';
-            }
-        }
         if (typeof window.startIdleTimer === 'function') window.startIdleTimer();
-        if (typeof window.checkSystemStatus === 'function') window.checkSystemStatus();
-        // 🚀 OMEGA LIVE RADAR: Spustí polling stavu dodávky každých 15 sekund
+        
+        // 🚀 OMEGA SMART SYNC: Snížená zátěž CFW limitů (Polling každých 60s)
         if (typeof window.checkSystemStatus === 'function') {
-            window.checkSystemStatus(); // První okamžitý check
+            window.checkSystemStatus(); 
             if (window.statusPollingTimer) clearInterval(window.statusPollingTimer);
-            window.statusPollingTimer = setInterval(window.checkSystemStatus, 15000);
+            window.statusPollingTimer = setInterval(window.checkSystemStatus, 60000);
         }
-        // 🚀 SELEKCE ČETBY: Načtení uživatelského profilu do paměti po startu
+        
+        // 🚀 SELEKCE ČETBY: Načtení uživatelského profilu
         if (typeof window.loadOmegaProfile === 'function') {
             window.loadOmegaProfile();
         }
@@ -2711,6 +2678,7 @@ window.initAdminVirtualDb = function() {
 
 // 🚀 OMEGA EDITOR ENGINE: Aplikace LIS Algoritmu přímo na aktivní tabulku editoru
 window.adminEvaluateChanges = function() {
+    window.OMEGA_STAGING_SAVED = false; // 🚀 OMEGA FIX: Shodit pojistku, pokud učitel dál edituje
     const prodDb = window.OMEGA_CONFIG.KNIHY_DB.map((k, i) => ({...k, id: i + 1}));
     
     // Vyčleníme si pouze živé knihy a přečíslujeme je
@@ -3134,9 +3102,154 @@ window.executeFinalRecovery = function() {
     pushToCloudflare(payloadToPush, turnstileToken); 
 };
 
+// ==========================================
+// 🚀 GLOBÁLNÍ ROUTER TLAČÍTEK (Musí být přístupné z index.html)
+// ==========================================
+
+window.sendToInbox = () => window.prepareDatabaseExport('/draft/submit');
+
+// 1. TICHÝ STAGING ENGINE
+window.saveToStaging = async function() {
+    showToast("⏳ Ukládám koncept na pozadí...");
+
+    let newDb = []; let counter = 1;
+    adminVirtualDb.forEach(book => {
+        if (!book._isDeleted) {
+            let exportOrigId = book.origId || (book._original ? book._original.id : book.id);
+            if (book._isAdded) exportOrigId = null;
+            newDb.push({ id: counter++, origId: exportOrigId, dilo: sanitize(book.dilo), autor: sanitize(book.autor), druh: book.druh, obdobi: book.obdobi });
+        }
+    });
+
+    const formattedDbString = "[\n" + newDb.map(book => `{ "id": ${book.id}, "origId": ${book.origId}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n') + "\n    ]";
+    const finalPayload = `window.OMEGA_CONFIG = { ...window.OMEGA_CONFIG, KNIHY_DB: ${formattedDbString} };`;
+
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + '/staging', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionStorage.getItem('omega_session_token')}` },
+            body: JSON.stringify({ fileContent: finalPayload, action: 'save' })
+        });
+        if (!res.ok) throw new Error("Chyba úložiště.");
+
+        // 🚀 OMEGA FIX: Zde byl Fantom. Už nemažeme vlajky _isEdited. 
+        // Jen řekneme enginu, že je práce bezpečně v cloudu.
+        window.OMEGA_STAGING_SAVED = true;
+
+        showToast("✅ Koncept úspěšně uložen.");
+    } catch (e) { showToast("❌ Uložení selhalo: " + e.message, "error"); }
+};
+
+window.loadFromStaging = async function() {
+    try {
+        showToast("⏳ Hledám uložený koncept...");
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + '/staging', {
+            method: 'POST',
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${sessionStorage.getItem('omega_session_token')}` 
+            },
+            body: JSON.stringify({ action: 'load' })
+        });
+        
+        if (res.status === 404) return showToast("ℹ️ Žádný rozpracovaný koncept nebyl nalezen.");
+        if (!res.ok) throw new Error("Chyba při komunikaci se serverem.");
+        
+        const data = await res.json();
+        
+        // 🚀 OMEGA FIX: Neprůstřelný Regex (ignoruje vnitřní formátování mezer)
+        const dbMatch = data.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
+        if (!dbMatch) throw new Error("Poškozená struktura dat ve Stagingu.");
+        
+        window.reconstructVirtualDbFromDraft(JSON.parse(dbMatch[1]));
+        showToast("✅ Koncept úspěšně načten z paměti!");
+        
+    } catch (e) {
+        showToast("❌ Nelze načíst Staging: " + e.message);
+    }
+};
+
+// 🚀 OMEGA FIX: Napojení přímo na hezký potvrzovací modál
+window.commitToProduction = () => window.prepareDatabaseExport('/');
+
+// ==========================================
+// 🚀 OMEGA ŠVP MANAGER (Regex-Free Edition)
+// ==========================================
+window.saveOboryConfig = async function() {
+    const tbody = document.getElementById('admin-obory-tbody');
+    if (!tbody) return showToast("⚠️ Otevřete nejdříve PDF Editor.");
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).slice(1);
+    const noveObory = rows.map(tr => {
+        const tds = tr.querySelectorAll('td');
+        return { kod: tds[0].textContent.replace('×', '').trim(), svp: tds[1].textContent.trim() };
+    }).filter(o => o.kod && o.svp);
+
+    try {
+        showToast("⏳ Ukládám ŠVP obory a kompiluji databázi...");
+
+        // 1. Vygeneruje perfektní jednořádkový formát pro obory
+        const formattedOboryString = "[\n        " + noveObory.map(o => `{ "kod": ${JSON.stringify(o.kod)}, "svp": ${JSON.stringify(o.svp)} }`).join(',\n        ') + "\n    ]";
+        
+        // 2. Vygeneruje perfektní jednořádkový formát pro KNIHY_DB (Ochrana proti rozbití)
+        const currentDb = window.OMEGA_CONFIG.KNIHY_DB || [];
+        const formattedDbString = "[\n    " + currentDb.map(book => `{ "id": ${book.id}, "origId": ${book.origId}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n    ') + "\n]";
+
+        const today = window.OMEGA_CONFIG.LAST_UPDATE || new Date().toLocaleDateString('cs-CZ');
+
+        // 3. Poskládá celý soubor exaktně do původní podoby
+        const finalPayload = `// =====================================================================
+// KONFIGURACE PROSTŘEDÍ: SPŠ a VOŠ PŘÍBRAM (VÝCHOZÍ)
+// =====================================================================
+
+window.OMEGA_CONFIG = {
+    LAST_UPDATE: "${today}",
+    REQUIREMENTS: { do18: 2, "19": 3, svet20: 4, cz20: 5, lyrika: 2, epika: 2, drama: 2 },
+    
+    FORM_HTML: \`
+        <div class="input-group">
+            <input type="text" id="student-name" class="styled-input" placeholder="Jméno a příjmení" autocomplete="name">
+            <input type="text" id="student-dob" class="styled-input" placeholder="Datum nar. (např. 1. 1. 2007)" autocomplete="bday">
+            <input type="text" id="student-class" class="styled-input" placeholder="Třída (např. 4.IT)">
+            <div class="styled-input" id="year-wrapper" style="display: flex; align-items: center; gap: 6px; color: var(--text-muted); cursor: text;" onclick="document.getElementById('student-year').focus()">
+                <span>Školní rok: 20</span>
+                <input type="text" id="student-year" maxlength="2" placeholder="25" autocomplete="off" style="width: 30px; border: none; background: transparent; color: var(--text-main); font-weight: 900; font-family: inherit; font-size: 1.15em; outline: none; text-align: center; border-bottom: 2px solid var(--accent-primary); padding: 0 0 2px 0; border-radius: 0; box-shadow: none; -webkit-appearance: none; appearance: none;">
+                <span> / 20</span><span id="student-year-next" style="color: var(--text-main); font-weight: bold;">26</span>
+            </div>
+        </div>
+    \`,
+    RULES_HTML: "",
+    FORM_FIELDS: ['name', 'dob', 'class', 'year'],
+    
+    // 🚀 OMEGA FIX: Obory zapsány jako čisté JS pole (Bez uvozovek)
+    OBORY_CONFIG: ${formattedOboryString},
+
+    renderPdf: ${window.OMEGA_CONFIG.renderPdf.toString()},
+    CHANGELOG_DB: ${JSON.stringify(window.OMEGA_CONFIG.CHANGELOG_DB || [], null, 8)},
+    KNIHY_DB: ${formattedDbString}
+};`;
+
+        // 4. Bypasne OCC validaci a zapíše strukturu na ostrou doménu
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionStorage.getItem('omega_session_token')}` },
+            body: JSON.stringify({
+                fileContent: finalPayload,
+                commit_message: "Aktualizace ŠVP oborů v PDF",
+                base_version: "BYPASS_OCC" 
+            })
+        });
+
+        if (!res.ok) throw new Error("Zápis selhal.");
+        
+        window.OMEGA_CONFIG.OBORY_CONFIG = noveObory;
+        showToast("✅ Obory byly úspěšně uloženy a zformátovány.");
+    } catch (err) { showToast("❌ " + err.message, "error"); }
+};
+
 // --- 🧬 OMEGA EXPORT ENGINE (Zero-Trust Edition) ---
 
-window.prepareDatabaseExport = async function() {
+window.prepareDatabaseExport = async function(targetEndpoint = '/') {
     const turnstileInput = document.querySelector('[name="cf-turnstile-response"]');
     const turnstileToken = turnstileInput ? turnstileInput.value : null;
 
@@ -3149,14 +3262,13 @@ window.prepareDatabaseExport = async function() {
     const editedCount = adminVirtualDb.filter(k => k._isEdited && !k._isDeleted).length;
     const deletedCount = adminVirtualDb.filter(k => k._isDeleted && !k._isAdded).length;
 
-    // 🚀 STRIKTNÍ OCHRANA: Hledí pouze na fyzické změny knih
     if (addedCount === 0 && editedCount === 0 && deletedCount === 0) {
-        showToast("⚠️ Nebyly provedeny žádné změny v databázi knih.");
+        showToast("⚠️ Nebyly provedeny žádné fyzické změny v databázi knih.");
         return;
     }
 
-    // 🚀 OMEGA FIX: Zálohu (snapshot) stahuje na disk POUZE hlavní architekt
-    if (sessionCredentials.username === 'omega') {
+    // 🚀 OMEGA FIX: Zálohu (snapshot) stahuje na disk POUZE hlavní architekt do OSTRÉ produkce
+    if (sessionCredentials.username === 'omega' && targetEndpoint === '/') {
         await createAutoSnapshot();
     }
 
@@ -3165,9 +3277,8 @@ window.prepareDatabaseExport = async function() {
 
     adminVirtualDb.forEach(book => {
         if (!book._isDeleted) {
-            book._finalId = counter; // 🚀 INJEKCE PRO DETAILNÍ AUDIT LOG
+            book._finalId = counter; 
 
-            // 🚀 OMEGA FIX: Zabráníme krádeži identity (Nové dílo nesmí zdědit ID cizí knihy)
             let exportOrigId = book.origId || (book._original ? book._original.id : book.id);
             if (book._isAdded) exportOrigId = null;
 
@@ -3182,7 +3293,6 @@ window.prepareDatabaseExport = async function() {
         }
     });
 
-    // 🚀 Aplikace DNA stopy do finálního JSONu
     const formattedDbString = "[\n" + newDb.map(book => `{ "id": ${book.id}, "origId": ${book.origId}, "dilo": ${JSON.stringify(book.dilo)}, "autor": ${JSON.stringify(book.autor)}, "druh": "${book.druh}", "obdobi": "${book.obdobi}" }`).join(',\n') + "\n    ]";
     const today = new Date().toLocaleDateString('cs-CZ');
 
@@ -3192,31 +3302,20 @@ window.prepareDatabaseExport = async function() {
     const warningEl = modal.querySelector('p');
     const executeBtn = document.getElementById('btn-final-execute');
     
-    const user = sessionCredentials.username.toLowerCase();
-    
-    // 🚀 OMEGA UX: Kontextový Copywriting podle role
-    let titleText, warningText, btnText, placeholderText;
+    // 🚀 OMEGA UX: Kontextový Copywriting podle CÍLOVÉ AKCE
+    let placeholderText = "";
 
-    if (user === 'omega') {
-        titleText = "Potvrdit nevratné změny?";
-        warningText = "Tato akce okamžitě přepíše produkční databázi školy. Změny se projeví všem studentům.";
-        btnText = "🔥 Přepsat databázi";
-        placeholderText = "Popis změn (POVINNÉ, např. 'Oprava překlepu')";
-    } else if (user === 'vedouci') {
-        titleText = "Odeslat návrh ke schválení?";
-        warningText = "Návrh bude odeslán vedení školy. Dokud nebude schválen, na webu se nic nezmění.";
-        btnText = "📩 Odeslat vedení";
-        placeholderText = "Zdůvodnění úprav pro vedení školy (POVINNÉ)";
+    if (targetEndpoint === '/') {
+        if (titleEl) titleEl.innerHTML = "🚀 Ostrý zápis do produkce";
+        if (warningEl) warningEl.innerHTML = "Tato akce <strong style='color: var(--accent-red);'>OKAMŽITĚ přepíše databázi</strong> pro všechny studenty. Jste si jisti, že máte papírový souhlas ředitele?";
+        if (executeBtn) executeBtn.innerText = "Potvrdit a zapsat (GitHub)";
+        placeholderText = "Popis změn pro historii (POVINNÉ)";
     } else {
-        titleText = "Odeslat nápady vedoucí(mu) katedry?";
-        warningText = "Vaše úpravy se nikam veřejně nepropíší. Budou uloženy jako doporučení pro vedoucí(ho) katedry.";
-        btnText = "💡 Odeslat nápad";
-        placeholderText = "Vzkaz pro vedoucí(ho) katedry (POVINNÉ)";
+        if (titleEl) titleEl.innerHTML = "💡 Odeslat nápady";
+        if (warningEl) warningEl.innerHTML = "Váš návrh bude odeslán do pošty ke kontrole vedoucí(mu) katedry.";
+        if (executeBtn) executeBtn.innerText = "Odeslat návrh";
+        placeholderText = "Vzkaz pro vedoucího (POVINNÉ)";
     }
-
-    if (titleEl) titleEl.innerText = titleText;
-    if (warningEl) warningEl.innerText = warningText;
-    if (executeBtn) executeBtn.innerText = btnText;
 
     summary.innerHTML = `
         • Počet děl k odstranění: <strong style="color: var(--accent-red)">${deletedCount}</strong><br>
@@ -3247,10 +3346,8 @@ window.prepareDatabaseExport = async function() {
             return; 
         }
 
-        // 🚀 OMEGA SMART AUDIT v3: Enterprise Grid Formatting & No Comments
         let notes = [];
 
-        // CSS Grid formátovač (Dokonalé lícování sloupců)
         const formatBook = (id, k) => `
             <div style="display: grid; grid-template-columns: 55px 3fr 2.5fr 1fr 1.5fr; gap: 10px; align-items: center; width: 100%;">
                 <strong style="color: var(--accent-primary-light);">ID ${id}</strong>
@@ -3282,18 +3379,59 @@ window.prepareDatabaseExport = async function() {
 
         const edited = adminVirtualDb.filter(k => k._isEdited && !k._isDeleted);
         if (edited.length > 0) {
-            let html = `<strong style="color: #f59e0b; display: block; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 0.5px;">✏️ UPRAVENY / PŘESUNUTY:</strong><div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;">`;
+            let html = `<strong style="color: #f59e0b; display: block; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 0.5px;">✏️ UPRAVENÁ DĚLA:</strong><div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;">`;
+            
             edited.sort((a,b) => a._finalId - b._finalId).forEach(k => {
-                html += `<div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 6px;">${formatBook(k._finalId, k)}</div>`;
+                let diffHtml = `<div style="padding: 8px 12px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 6px;">`;
+                
+                // 1. Zobrazení aktuálního (nového) stavu knihy v Gridu
+                diffHtml += formatBook(k._finalId, k); 
+
+                // 2. Detekce a výpis toho, co se fyzicky změnilo
+                let changes = [];
+                const orig = k._original || {};
+                
+                if (orig.dilo && orig.dilo !== k.dilo) changes.push(`<strong>Dílo:</strong> <span style="text-decoration:line-through; opacity:0.6;">${sanitize(orig.dilo)}</span> ➔ <span style="color: #f59e0b;">${sanitize(k.dilo)}</span>`);
+                if (orig.autor && orig.autor !== k.autor) changes.push(`<strong>Autor:</strong> <span style="text-decoration:line-through; opacity:0.6;">${sanitize(orig.autor)}</span> ➔ <span style="color: #f59e0b;">${sanitize(k.autor)}</span>`);
+                if (orig.druh && orig.druh !== k.druh) changes.push(`<strong>Druh:</strong> <span style="text-decoration:line-through; opacity:0.6;">${orig.druh}</span> ➔ <span style="color: #f59e0b;">${k.druh}</span>`);
+                if (orig.obdobi && orig.obdobi !== k.obdobi) changes.push(`<strong>Období:</strong> <span style="text-decoration:line-through; opacity:0.6;">${MAPA_OBDOBI[orig.obdobi] || orig.obdobi}</span> ➔ <span style="color: #f59e0b;">${MAPA_OBDOBI[k.obdobi] || k.obdobi}</span>`);
+
+                if (changes.length > 0) {
+                    diffHtml += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(245, 158, 11, 0.3); font-size: 0.85em; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;">`;
+                    changes.forEach(c => { diffHtml += `<div>${c}</div>`; });
+                    diffHtml += `</div>`;
+                }
+                
+                diffHtml += `</div>`;
+                html += diffHtml;
             });
             html += `</div>`;
             notes.push(html);
         }
 
-        // Zápis do lokální instance changelogu (Komentář už neukládáme jako vizuální prvek)
-        adminChangelogDb.unshift({
-            type: 'db', version: `Revize databáze (${OMEGA_VERSION})`, date: today, notes: notes
-        });
+        if (targetEndpoint === '/') {
+            adminChangelogDb.unshift({
+                type: 'db', version: `Revize databáze (${OMEGA_VERSION})`, date: today, notes: notes
+            });
+        }
+
+        // 🚀 OMEGA SHIELD: Agresivní extrakce Oborů těsně před zápisem (Obrana proti amnézii)
+        let safeObory = window.OMEGA_CONFIG.OBORY_CONFIG || [];
+        const oboryTbody = document.getElementById('admin-obory-tbody');
+        if (oboryTbody) {
+            const parsedObory = Array.from(oboryTbody.querySelectorAll('tr')).slice(1).map(tr => {
+                const tds = tr.querySelectorAll('td');
+                return tds.length >= 2 ? { kod: tds[0].textContent.replace('×', '').trim(), svp: tds[1].textContent.trim() } : null;
+            }).filter(o => o && o.kod && o.svp);
+            
+            if (parsedObory.length > 0) {
+                safeObory = parsedObory;
+                window.OMEGA_CONFIG.OBORY_CONFIG = safeObory; // Update lokální RAM pro jistotu
+            }
+        }
+
+        // 🚀 OMEGA FIX: Čistý jednořádkový formátovač pro export
+        const formattedOboryString = "[\n        " + safeObory.map(o => `{ "kod": ${JSON.stringify(o.kod)}, "svp": ${JSON.stringify(o.svp)} }`).join(',\n        ') + "\n    ]";
 
         const finalExportPayload = `// =====================================================================
 // KONFIGURACE PROSTŘEDÍ: SPŠ a VOŠ PŘÍBRAM (VÝCHOZÍ)
@@ -3317,6 +3455,8 @@ window.OMEGA_CONFIG = {
     \`,
     RULES_HTML: "",
     FORM_FIELDS: ['name', 'dob', 'class', 'year'],
+    
+    OBORY_CONFIG: ${formattedOboryString},
 
     renderPdf: ${window.OMEGA_CONFIG.renderPdf.toString()},
     CHANGELOG_DB: ${JSON.stringify(adminChangelogDb, null, 8)},
@@ -3325,7 +3465,8 @@ window.OMEGA_CONFIG = {
 
         finalExecuteBtn.disabled = true; 
         closeConfirmModal();
-        pushToCloudflare(finalExportPayload, turnstileToken, customMsg);
+        
+        pushToCloudflare(finalExportPayload, turnstileToken, customMsg, targetEndpoint);
     };
 };
 
@@ -3396,7 +3537,7 @@ window.closeConfirmModal = function() {
 
 // --- 🌐 CLOUDFLARE TRANSPORT (Zero-Trust Edition) ---
 
-function pushToCloudflare(fileContent, turnstileToken, customMsg = "") {
+window.pushToCloudflare = function(fileContent, turnstileToken, customMsg = "", targetEndpoint = "/") {
     const modal = document.getElementById('admin-confirmation-modal');
     const msgEl = document.getElementById('admin-confirmation-msg');
     const downloadBtn = document.getElementById('btn-actual-download');
@@ -3405,102 +3546,57 @@ function pushToCloudflare(fileContent, turnstileToken, customMsg = "") {
     msgEl.innerHTML = `⏳ <strong>Kompiluji databázi a ověřuji identitu přes Edge...</strong><br>Prosím, nezavírejte okno.`;
     if (downloadBtn) downloadBtn.style.display = (sessionCredentials.username === 'omega') ? 'block' : 'none';
 
-    // 🚀 OMEGA FIX: Výhybka pro State Machine
-    // Pokud jsi přihlášený ty (omega), pošleme to rovnou na ostrej Git ('/')
-    // Pokud jsou to učitelé, pošleme to jen jako návrh ('/draft/submit')
-    const targetEndpoint = (sessionCredentials.username === 'omega') ? "/" : "/draft/submit";
-
+    // 🚀 OMEGA FIX: Žádné hardcodované přepisování cíle. Cíl určuje tlačítko, které akci vyvolalo.
     fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + targetEndpoint, {
         method: "POST",
         headers: { 
             "Content-Type": "application/json",
-            "X-Omega-Device-Id": getDeviceIdentity() 
+            "X-Omega-Device-Id": typeof getDeviceIdentity === 'function' ? getDeviceIdentity() : "unknown",
+            "Authorization": `Bearer ${sessionStorage.getItem('omega_session_token')}` // 🚀 FIX: Zabezpečení
         },
         body: JSON.stringify({ 
             fileContent: fileContent,  
-            cf_token: turnstileToken ,
+            cf_token: turnstileToken,
             commit_message: customMsg, 
-            base_version: DB_VERSION 
+            base_version: window.DB_VERSION || "BYPASS_OCC" 
         })
     })
     .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Neznámá chyba serveru.");
         
-        // 🚀 OMEGA FIX: Vyčištění RAM a UI po produkčním uložení
+        // 🚀 OMEGA FIX: Vyčištění RAM a shození pojistky neuložených změn
         adminVirtualDb = adminVirtualDb.filter(book => !book._isDeleted);
         adminVirtualDb.forEach((book, idx) => {
-            book.id = idx + 1;
-            book._isAdded = false;
-            book._isEdited = false;
-            book._moveHistory = [];
-            book._original = { ...book }; 
+            book.id = idx + 1; book._isAdded = false; book._isEdited = false; book._moveHistory = []; book._original = { ...book }; 
         });
+        window.OMEGA_STAGING_SAVED = true; 
+
         if (typeof renderAdminTable === 'function') renderAdminTable();
         if (typeof renderAdminSummary === 'function') renderAdminSummary();
 
-        if (data.isSuggestion) {
-            // 🚀 OMEGA FIX: Odpověď pro běžného učitele
-            msgEl.innerHTML = `✅ <strong>NÁPAD BYL ODESLÁN</strong><br>Vaše myšlenky a úpravy byly odeslány katedře ČJL k nahlédnutí.<br><br><button onclick="closeAdminConfirmationModal(); checkSystemStatus();" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Rozumím</button>`;
-            
-            // 🚀 OMEGA FIX: Tvrdý reset paměti a překreslení tabulky do výchozího stavu
-            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb();
-            if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
-            
-        } else if (data.isDraft) {
-            // Oficiální návrh od Vedoucího pro Vedení
-            msgEl.innerHTML = `✅ <strong>NÁVRH BYL ODESLÁN VEDENÍ</strong><br>Vaše změny byly uloženy na zabezpečený server. Na webu se propíší, jakmile je vedení školy schválí.<br><br><button onclick="closeAdminConfirmationModal(); checkSystemStatus();" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Rozumím</button>`;
-            
-            // 🚀 OMEGA FIX: Tvrdý reset paměti a překreslení tabulky do výchozího stavu
-            if (typeof window.initAdminVirtualDb === 'function') window.initAdminVirtualDb();
-            if (typeof window.renderAdminTable === 'function') window.renderAdminTable();
-            
+        // 🚀 OMEGA FIX: UI reakce podle skutečného cíle, nikoliv podle isSuggestion/isDraft
+        if (targetEndpoint === '/draft/submit') {
+            msgEl.innerHTML = `✅ <strong>NÁPAD BYL ODESLÁN</strong><br>Vaše úpravy byly odeslány do pošty ke kontrole vedoucí(mu) katedry.<br><br><button onclick="closeAdminConfirmationModal(); if(typeof checkSystemStatus === 'function') checkSystemStatus();" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Rozumím</button>`;
         } else {
-            // Přímý zápis (Omega)
             msgEl.innerHTML = `✅ <strong>AKTUALIZACE ÚSPĚŠNÁ!</strong><br>Databáze byla exaktně zapsána do repozitáře.<br><br><button onclick="closeAdminConfirmationModal()" class="btn" style="width:100%; padding:10px; background:var(--bg-base); border:1px solid var(--border); color:var(--text-main);">Zavřít okno</button>`;
         }
         
-        pendingExportPayload = null;
+        if (typeof pendingExportPayload !== 'undefined') pendingExportPayload = null;
         if (typeof navrhniDalsiVolneId === 'function') navrhniDalsiVolneId();
-        
-        // 🛡️ Bezpečnostní reset pro EXPORT widget
-        if (typeof turnstile !== 'undefined') {
-            try { turnstile.reset('#omega-export-ts'); } catch (e) { turnstile.reset(); }
-            const statusEl = document.getElementById('ts-status-export');
-            if (statusEl) {
-                statusEl.innerHTML = "⏳ Zajišťuji kryptografický podpis pro zápis...";
-                statusEl.style.color = "var(--accent-primary, #e67e22)";
-            }
-        }
+        if (typeof turnstile !== 'undefined') { try { turnstile.reset('#omega-export-ts'); } catch (e) { turnstile.reset(); } }
     })
     .catch((error) => {
-        msgEl.innerHTML = `❌ <strong>BEZPEČNOSTNÍ NEBO SÍŤOVÁ CHYBA:</strong><br>${error.message}`;
+        msgEl.innerHTML = `❌ <strong>CHYBA SERVERU:</strong><br>${error.message}`;
         if (downloadBtn) {
-            downloadBtn.style.display = 'block';
-            downloadBtn.textContent = "Zavřít a vygenerovat nový podpis";
-            // Obrana proti Replay Attack: Zavřeme okno a nutíme uživatele vygenerovat čerstvý token.
+            downloadBtn.style.display = 'block'; downloadBtn.textContent = "Zavřít okno";
             downloadBtn.onclick = () => {
-                // 🧹 DRUHÝ VÝMAZ RAM: Zničení payloadu při zavření chybového modálu
-                pendingExportPayload = null;
-                if (typeof closeAdminConfirmationModal === 'function') {
-                    closeAdminConfirmationModal();
-                } else {
-                    modal.style.display = 'none';
-                }
+                if (typeof pendingExportPayload !== 'undefined') pendingExportPayload = null;
+                if (typeof closeAdminConfirmationModal === 'function') closeAdminConfirmationModal(); else modal.style.display = 'none';
             }; 
         }
-        
-        // 🛡️ Bezpečnostní reset pro EXPORT widget při chybě
-        if (typeof turnstile !== 'undefined') {
-            try { turnstile.reset('#omega-export-ts'); } catch (e) { turnstile.reset(); }
-            const statusEl = document.getElementById('ts-status-export');
-            if (statusEl) {
-                statusEl.innerHTML = "⏳ Generuji nový klíč po chybě...";
-                statusEl.style.color = "var(--accent-primary, #e67e22)";
-            }
-        }
     });
-}
+};
 
 window.closeAdminConfirmationModal = function() {
     document.getElementById('admin-confirmation-modal').style.display = 'none';
@@ -3584,7 +3680,6 @@ window.turnstileExpiredExport = function() {
     }
 };
 
-
 // --- 🖨️ WYSIWYG PDF GENERATOR (Precise Alignment Edition) ---
 window.openAdminPdfEditor = function() {
     const container = document.getElementById('admin-print-document');
@@ -3594,10 +3689,7 @@ window.openAdminPdfEditor = function() {
     // 🚀 OMEGA FIX: Hierarchie zdrojů dat pro tisk (Kaskádový výběr)
     let dataSource = window.OMEGA_CONFIG.KNIHY_DB; // Záložní plán: Aktuální schválená produkce
     
-    if (sessionCredentials.username === 'vedeni' && window.DRAFT_KNIHY_DB) {
-        // 1. PRIORITA: Pokud to tiskne Vedení a existuje návrh, vytisknou návrh
-        dataSource = window.DRAFT_KNIHY_DB;
-    } else if (typeof adminVirtualDb !== 'undefined' && adminVirtualDb.length > 0) {
+    if (typeof adminVirtualDb !== 'undefined' && adminVirtualDb.length > 0) {
         // 2. PRIORITA: Učitel tiskne to, co má právě lokálně rozpracované
         dataSource = adminVirtualDb.filter(k => !k._isDeleted);
     }
@@ -3612,6 +3704,8 @@ window.openAdminPdfEditor = function() {
         "cz20": "ČR 20. a 21. st."
     };
 
+    const btnStyle = "position: absolute; left: 2px; top: 50%; transform: translateY(-50%); background: transparent; color: #ef4444; border: none; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;";
+
     // --- DYNAMICKÉ OVLÁDÁNÍ OBORŮ ---
     window.adminRemoveOborRow = function(btn) {
         btn.closest('tr').remove();
@@ -3619,13 +3713,32 @@ window.openAdminPdfEditor = function() {
     window.adminAddOborRow = function() {
         const tbody = document.getElementById('admin-obory-tbody');
         const tr = document.createElement('tr');
-        const btnStyle = "position: absolute; left: 2px; top: 50%; transform: translateY(-50%); background: transparent; color: #ef4444; border: none; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;";
         tr.innerHTML = `
             <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>NOVÝ OBOR</td>
             <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Nový ŠVP</td>
         `;
         tbody.insertBefore(tr, tbody.lastElementChild);
     };
+
+    // 🚀 OMEGA FIX: Dynamické generování oborů z paměti
+    let oboryRows = '';
+    const oboryData = window.OMEGA_CONFIG.OBORY_CONFIG || [];
+    
+    if (oboryData.length > 0) {
+        oboryData.forEach(obor => {
+            oboryRows += `
+                <tr>
+                    <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>${sanitize(obor.kod)}</td>
+                    <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">${sanitize(obor.svp)}</td>
+                </tr>`;
+        });
+    } else {
+        oboryRows = `
+            <tr>
+                <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>Kód a název oboru</td>
+                <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Název ŠVP</td>
+            </tr>`;
+    }
 
     // --- GENERACE TABULKY KNIH ---
     let tableRows = `
@@ -3654,8 +3767,6 @@ window.openAdminPdfEditor = function() {
         `;
         counter++;
     });
-
-    const btnStyle = "position: absolute; left: 2px; top: 50%; transform: translateY(-50%); background: transparent; color: #ef4444; border: none; cursor: pointer; font-size: 14px; padding: 0; line-height: 1;";
 
     // --- HLAVNÍ DOKUMENT ---
     container.innerHTML = `
@@ -3702,30 +3813,7 @@ window.openAdminPdfEditor = function() {
                                             <td style="width: 50%; border-right: 1pt solid black; border-bottom: 1pt solid black; padding: 2px 5px; font-weight: bold; text-align: left;">Obor vzdělávání:</td>
                                             <td style="width: 50%; border-bottom: 1pt solid black; padding: 2px 5px; font-weight: bold; text-align: left;">ŠVP:</td>
                                         </tr>
-                                        <tr>
-                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>23-41-M/01 STROJÍRENSTVÍ</td>
-                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Strojírenství počítačové</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>26-41-M/01 ELEKTROTECHNIKA</td>
-                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Multimedia a informatika</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>26-41-M/01 ELEKTROTECHNIKA</td>
-                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Počítačové technologie</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>18-20M/01 INFORMAČNÍ TECHNOLOGIE</td>
-                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Informační technologie</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border-right: 1pt solid black; border-bottom: 0.5pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>36-47-M/01 STAVEBNICTVÍ</td>
-                                            <td style="border-bottom: 0.5pt solid black; padding: 1.5px 5px;" class="editable-field" contenteditable="true">Pozemní stavitelství</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="border-right: 1pt solid black; padding: 1.5px 5px 1.5px 20px; position: relative;" class="editable-field" contenteditable="true"><button class="no-print" onclick="adminRemoveOborRow(this)" style="${btnStyle}">×</button>36-47-M/01 STAVEBNICTVÍ</td>
-                                            <td style="padding: 1.5px 5px;" class="editable-field" contenteditable="true">Pozemní stavitelství a architektura</td>
-                                        </tr>
+                                        ${oboryRows}
                                     </tbody>
                                 </table>
                             </div>
@@ -3898,172 +3986,6 @@ window.adminDeleteChangelog = function(idx) {
 
 // --- 🏛️ OMEGA GOVERNANCE ENGINE ---
 
-// --- STATE MANAGEMENT TRACKERU ---
-window.TRACKER_DISMISSED = false;
-window.LAST_SEEN_TRUCK_ID = localStorage.getItem('omega_last_truck_id') || null;
-window.LAST_SEEN_TRUCK_STATUS = localStorage.getItem('omega_last_truck_status') || null;
-window.LAST_SEEN_TRUCK_FEEDBACK = localStorage.getItem('omega_last_truck_feedback') || "";
-window.LAST_SEEN_TRUCK_DATE = localStorage.getItem('omega_last_truck_date') || "";
-
-window.dismissTruckTracker = function() {
-    window.TRACKER_DISMISSED = true; 
-    if (window.LAST_SEEN_TRUCK_ID) {
-        localStorage.setItem('omega_dismissed_tracker_id', window.LAST_SEEN_TRUCK_ID);
-    }
-    renderTrackerUI();
-};
-
-window.toggleTruckTracker = function() {
-    const body = document.getElementById('truck-body-container');
-    const btn = document.getElementById('truck-toggle-btn');
-    
-    if (!body.style.maxHeight || body.style.maxHeight !== '0px') {
-        body.style.maxHeight = '0px';
-        body.style.opacity = '0';
-        body.style.marginTop = '0px';
-        btn.innerHTML = '➕ Rozbalit';
-    } else {
-        body.style.maxHeight = '150px'; 
-        body.style.opacity = '1';
-        body.style.marginTop = '30px';
-        btn.innerHTML = '➖ Zabalit';
-    }
-};
-
-// 1. Logika pro zpracování dat ze serveru (Nemanipuluje s DOMem)
-window.updateDeliveryTruck = function(incomingStatus, incomingFeedback = "", incomingDate = "") {
-    const stateId = incomingStatus + "_" + incomingDate;
-    
-    // Pokud nám server hlásí aktivní stav (schvaluje se, schváleno, zamítnuto)
-    if (incomingStatus === 'pending' || incomingStatus === 'accepted' || incomingStatus === 'rejected') {
-        
-        // Je to nová událost? Pokud ano, zrušíme případné předchozí skrytí uživatelem
-        if (window.LAST_SEEN_TRUCK_ID !== stateId) {
-            window.TRACKER_DISMISSED = false;
-        }
-
-        // Zápis do lokální paměti
-        window.LAST_SEEN_TRUCK_ID = stateId;
-        window.LAST_SEEN_TRUCK_STATUS = incomingStatus;
-        window.LAST_SEEN_TRUCK_FEEDBACK = incomingFeedback;
-        window.LAST_SEEN_TRUCK_DATE = incomingDate;
-
-        localStorage.setItem('omega_last_truck_id', stateId);
-        localStorage.setItem('omega_last_truck_status', incomingStatus);
-        localStorage.setItem('omega_last_truck_feedback', incomingFeedback);
-        localStorage.setItem('omega_last_truck_date', incomingDate);
-    } 
-    // Pokud nám server hlásí 'idle', reagujeme jen tehdy, pokud jsme měli stav 'pending' 
-    // (Znamená to, že návrh byl např. smazán administrátorem bokem)
-    else if (incomingStatus === 'idle') {
-        if (window.LAST_SEEN_TRUCK_STATUS === 'pending') {
-            window.LAST_SEEN_TRUCK_STATUS = 'idle';
-            localStorage.setItem('omega_last_truck_status', 'idle');
-        }
-    }
-
-    // Nyní teprve překreslíme UI na základě čisté lokální paměti
-    renderTrackerUI();
-};
-
-// 2. Oddělená vizualizační logika (Pracuje jen s lokální pamětí)
-function renderTrackerUI() {
-    const tracker = document.getElementById('omega-truck-tracker');
-    const line = document.getElementById('truck-progress-line');
-    const truck = document.getElementById('truck-icon');
-    const statusText = document.getElementById('truck-status-text');
-
-    if (!tracker || !line || !truck) return;
-
-    const status = window.LAST_SEEN_TRUCK_STATUS;
-    const feedback = window.LAST_SEEN_TRUCK_FEEDBACK;
-
-    // Kontrola, zda uživatel okno dříve nezavřel
-    const dismissedId = localStorage.getItem('omega_dismissed_tracker_id');
-    if (dismissedId === window.LAST_SEEN_TRUCK_ID) {
-        window.TRACKER_DISMISSED = true;
-    }
-
-    if (!status || status === 'idle' || window.TRACKER_DISMISSED) {
-        tracker.style.display = 'none';
-        return;
-    }
-
-    document.querySelectorAll('.truck-stop').forEach(s => {
-        s.style.color = 'var(--text-muted)';
-        s.style.textShadow = 'none';
-    });
-
-    const activateStop = (id, color) => {
-        const stop = document.getElementById(id);
-        if (stop) { stop.style.color = color; stop.style.textShadow = `0 0 10px ${color}`; }
-    };
-
-    if (status === 'pending') {
-        tracker.style.display = 'block'; tracker.style.borderColor = '#f59e0b';
-        statusText.innerHTML = "Balíček je na celnici. Čeká se na audit vedení školy."; statusText.style.color = "#f59e0b";
-        line.style.width = '63%'; line.style.background = '#f59e0b';
-        truck.style.left = '65%'; truck.innerText = "🚚"; truck.style.transform = "translateX(-50%) scaleX(-1)"; 
-        activateStop('stop-1', '#f59e0b'); activateStop('stop-2', '#f59e0b'); activateStop('stop-3', '#f59e0b');
-    } else if (status === 'rejected') {
-        tracker.style.display = 'block'; tracker.style.borderColor = '#ef4444';
-        statusText.innerHTML = `❌ Zásilka vrácena. Důvod: <span style="font-weight: normal;">"${sanitize(feedback)}"</span>`; statusText.style.color = "#ef4444";
-        line.style.width = '0%'; line.style.background = '#ef4444';
-        truck.style.left = '7%'; truck.innerText = "🚐💨"; truck.style.transform = "translateX(-50%) scaleX(1)"; 
-        activateStop('stop-1', '#ef4444');
-    } else if (status === 'accepted') {
-        tracker.style.display = 'block'; tracker.style.borderColor = 'var(--accent-green)';
-        statusText.innerHTML = `✅ Publikováno! <span style="font-weight: normal; color: var(--text-main);">"${sanitize(feedback)}"</span>`; statusText.style.color = "var(--accent-green)";
-        line.style.width = '100%'; line.style.background = 'var(--accent-green)';
-        truck.style.left = '94%'; truck.innerText = "🚚"; truck.style.transform = "translateX(-50%) scaleX(-1)"; 
-        activateStop('stop-1', 'var(--accent-green)'); activateStop('stop-2', 'var(--accent-green)'); activateStop('stop-3', 'var(--accent-green)'); activateStop('stop-4', 'var(--accent-green)');
-    }
-}
-
-function renderDraftDiff(draftDb) {
-    const container = document.getElementById('approval-diff-container');
-    if (!container) return;
-
-    // Využijeme nový textový generátor pro "Fyzické změny"
-    let html = window.generateDiffHtml(draftDb);
-    
-    // 🚀 OMEGA FIX: Napojení nového barevného jádra pro detailní kontrolu vedením
-    html += `
-        <div style="margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px;">
-            <button onclick="const l = document.getElementById('full-draft-list'); const isHidden = l.style.display === 'none'; l.style.display = isHidden ? 'block' : 'none'; this.innerHTML = isHidden ? '➖ Skrýt vizualizaci změn' : '👁️ Zobrazit kompletní vizualizaci změn (${draftDb.length} děl)';" style="background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%; transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'" onmouseout="this.style.borderColor='var(--border)'">
-                👁️ Zobrazit kompletní vizualizaci změn (${draftDb.length} děl)
-            </button>
-            <div id="full-draft-list" style="display: none; margin-top: 15px; background: var(--bg-surface); border-radius: 6px; border: 1px solid var(--border); box-shadow: inset 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
-                ${window.generateColoredPreviewTable(draftDb)}
-            </div>
-        </div>
-    `;
-    
-    container.innerHTML = html;
-}
-
-// --- 🕊️ OMEGA PULL REQUEST ENGINE (Inbox V3) ---
-window.OMEGA_INBOX_CACHE = []; 
-window.CURRENT_INBOX_TAB = 'new'; // 'new' nebo 'starred'
-
-window.openInboxModal = function() {
-    document.getElementById('omega-inbox-modal').style.display = 'flex';
-    fetchInbox(); 
-};
-
-window.switchInboxTab = function(tab) {
-    window.CURRENT_INBOX_TAB = tab;
-    const isNew = tab === 'new';
-    
-    document.getElementById('tab-inbox-new').style.color = isNew ? 'var(--accent-green)' : 'var(--text-muted)';
-    document.getElementById('tab-inbox-new').style.borderBottomColor = isNew ? 'var(--accent-green)' : 'transparent';
-    
-    document.getElementById('tab-inbox-starred').style.color = !isNew ? '#f59e0b' : 'var(--text-muted)';
-    document.getElementById('tab-inbox-starred').style.borderBottomColor = !isNew ? '#f59e0b' : 'transparent';
-    
-    renderInboxContent();
-};
-
 window.fetchInbox = async function() {
     if (sessionCredentials.username !== 'vedouci' && sessionCredentials.username !== 'omega') return;
     try {
@@ -4234,9 +4156,81 @@ window.openInboxModal = function() {
     fetchInbox(); 
 };
 
+// ==========================================
+// 3. LOGIKA PRO MODÁL "ULOŽENÉ NÁPADY" (Integrace s Inboxem)
+// ==========================================
+
 window.openStarredModal = function() {
     document.getElementById('omega-starred-modal').style.display = 'flex';
-    fetchInbox(); 
+    
+    // 1. Spustí tvou původní logiku pro načtení "hvězdičkované" pošty
+    if (typeof fetchInbox === 'function') fetchInbox(); 
+
+    // 2. Nezávisle stáhne a vykreslí tvůj osobní Staging koncept
+    window.loadStagingIntoModal();
+};
+
+window.loadStagingIntoModal = async function() {
+    try {
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + '/staging', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionStorage.getItem('omega_session_token')}` },
+            body: JSON.stringify({ action: 'load' })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.payload) return;
+
+        window._tempStagingPayload = data.payload;
+        const starredContent = document.getElementById('starred-content');
+        
+        const oldCard = document.getElementById('omega-staging-inline-card');
+        if (oldCard) oldCard.remove();
+
+        // 🚀 OMEGA UX: Design je nyní 1:1 identický se standardními nápady (Inbox)
+        const today = new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' });
+        // 🚀 OMEGA UX: Karta nyní vypadá identicky jako běžný nápad z pošty
+        const card = document.createElement('div');
+        card.id = 'omega-staging-inline-card';
+        card.style.cssText = "background: var(--bg-surface); border: 1px solid var(--border); padding: 15px; border-radius: 8px; margin-bottom: 10px;";
+        
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <strong style="color: var(--text-main); font-size: 1.05rem;">Můj koncept (Tento počítač)</strong>
+                <span style="color: var(--text-muted); font-size: 0.85rem;">Rozpracováno</span>
+            </div>
+            <div style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.95rem;">Dočasně uložená práce, čekající na dokončení.</div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="window.applyStagingToWorkspace()" class="btn" style="flex: 1; padding: 8px; background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'" onmouseout="this.style.borderColor='var(--border)'">
+                    Otevřít koncept
+                </button>
+            </div>
+        `;
+        starredContent.insertBefore(card, starredContent.firstChild);
+    } catch (e) { console.warn("Staging sync failed", e); }
+};
+
+window.applyStagingToWorkspace = async function() {
+    if (!window._tempStagingPayload) return;
+    const dbMatch = window._tempStagingPayload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])(?=\s*[\x7D;])/);
+    if (!dbMatch) return showToast("Data jsou porušena.", "error");
+
+    window.reconstructVirtualDbFromDraft(JSON.parse(dbMatch[1]));
+    document.getElementById('omega-starred-modal').style.display = 'none';
+    showToast("✅ Koncept nahozen. Odstraňuji dočasnou zálohu...");
+
+    // 🚀 OMEGA FIX: Okamžitá destrukce DOM elementu (zmizí před očima)
+    const oldCard = document.getElementById('omega-staging-inline-card');
+    if (oldCard) oldCard.remove();
+    window._tempStagingPayload = null;
+
+    try {
+        await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + '/staging', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionStorage.getItem('omega_session_token')}` },
+            body: JSON.stringify({ action: 'delete' })
+        });
+    } catch(e) {}
 };
 
 window.fetchInbox = async function() {
@@ -4580,192 +4574,43 @@ window.executeIdeaReject = async function() {
     } catch (e) {}
 };
 
-// --- 🚀 OMEGA VEDENÍ ACTION ENGINE ---
-window.handleDraftAction = function(action) {
-    if (action === 'approve') {
-        document.getElementById('omega-approve-modal').style.display = 'flex';
-    } else if (action === 'reject') {
-        window.openRejectModal(); // Vedení zamítá návrh
-    }
-};
-
-window.executeDraftApprove = async function() {
-    document.getElementById('omega-approve-modal').style.display = 'none';
-    const feedbackMsg = document.getElementById('approve-draft-msg') ? document.getElementById('approve-draft-msg').value.trim() : "";
-    window.executeDraftApi('/draft/approve', { feedback: feedbackMsg });
-};
-
-window.executeDraftApi = async function(endpoint, extraData) {
-    showToast("⏳ Komunikuji s Edge sítí...");
-    try {
-        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
-            body: JSON.stringify({ 
-                ...extraData
-            })
-        });
-        if (!res.ok) throw new Error("Chyba při operaci na serveru.");
-        showToast("✅ Operace proběhla úspěšně.");
-        
-        // 🚀 OMEGA KERNEL HOT-SWAP: Okamžitá injekce dat do lokální RAM
-        // Zabráníme tomu, aby PDF generátor tiskl stará data před kompilací Gitu.
-        if (endpoint === '/draft/approve' && window.DRAFT_KNIHY_DB) {
-            // Hluboká kopie schváleného návrhu přepíše starou databázi v paměti
-            window.OMEGA_CONFIG.KNIHY_DB = JSON.parse(JSON.stringify(window.DRAFT_KNIHY_DB));
-        }
-
-        const approvalForm = document.getElementById('admin-form-approval');
-        if (approvalForm) approvalForm.style.display = 'none'; 
-        
-        window.checkSystemStatus(); 
-    } catch (err) {
-        showToast("❌ Selhání: " + err.message);
-    }
-};
-
-window.openRejectModal = function() {
-    const modal = document.getElementById('omega-reject-modal');
-    if (modal) {
-        document.getElementById('reject-feedback-input').value = '';
-        modal.style.display = 'flex';
-    }
-};
-
-window.executeReject = function() {
-    const feedback = document.getElementById('reject-feedback-input').value.trim();
-    if (!feedback) {
-        showToast("⚠️ Musíte zadat důvod zamítnutí.");
-        document.getElementById('reject-feedback-input').style.borderColor = "var(--accent-red)";
-        return;
-    }
-    document.getElementById('omega-reject-modal').style.display = 'none';
-    window.executeDraftApi('/draft/reject', { feedback });
-};
-
 // --- 🚦 OMEGA GOVERNANCE & SYSTEM STATUS ---
+// ==========================================
+// 🛡️ OMEGA SMART POLLING (Úspora CFW limitů)
+// ==========================================
 window.checkSystemStatus = async function() {
+    // Neposílat request, pokud je okno minimalizované
+    if (document.hidden) return; 
+
+    const token = sessionStorage.getItem('omega_session_token');
+    if (!token) return;
+
     try {
-        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + "/draft/status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Omega-Device-Id": getDeviceIdentity() },
+        const res = await fetch(OMEGA_ADMIN_CONFIG.WORKER_URL + '/sync', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({})
         });
-        const data = await res.json();
-        const user = sessionCredentials.username.toLowerCase();
         
-        let visualStatus = data.status;
-        let visualFeedback = data.feedback;
-        let visualDate = data.date; // 🚀 Nová proměnná (Čas události z Cloudflaru)
-
-        if (data.userFeedback) {
-            visualStatus = data.userFeedback.status; // Nastaví 'accepted' nebo 'rejected'
-            visualFeedback = data.userFeedback.feedback;
-            visualDate = data.userFeedback.date; // 🚀 Propíšeme čas feedbacku
-            // 🔔 OMEGA NOTIFIKACE: Subjektivní zpráva pro autora nápadu
-            const msg = data.userFeedback.status === 'accepted' ? "Nápad přijat!" : "Nápad zamítnut!";
-            window.triggerBrowserNotification(msg);
-            // 🚀 Běžný učitel vidí textový banner (nemá dodávku)
-            if (user !== 'vedouci' && user !== 'omega') {
-                let feedbackBanner = document.getElementById('user-feedback-banner');
-                if (!feedbackBanner) {
-                    feedbackBanner = document.createElement('div');
-                    feedbackBanner.id = 'user-feedback-banner';
-                    const mainContent = document.querySelector('#omega-admin-portal > h2');
-                    mainContent.parentNode.insertBefore(feedbackBanner, mainContent);
-                }
-                
-                let rejectedDiff = "Chyba analýzy";
-                try {
-                    const jsonMatch = data.userFeedback.originalPayload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
-                    if (jsonMatch) rejectedDiff = generateDiffHtml(JSON.parse(jsonMatch[1]));
-                } catch(e) {}
-
-                const isAccepted = data.userFeedback.status === 'accepted';
-                const colorMain = isAccepted ? 'var(--accent-green)' : 'var(--accent-red)';
-                const bgMain = isAccepted ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
-                const iconMain = isAccepted ? '✅' : '❌';
-                const titleText = isAccepted ? 'Váš nápad byl přijat' : 'Váš návrh byl zamítnut';
-
-                feedbackBanner.innerHTML = `
-                    <div style="background: ${bgMain}; border: 1px solid ${colorMain}; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="width: 100%;">
-                            <h4 style="margin: 0 0 10px 0; color: ${colorMain}; font-size: 1.1rem;">${iconMain} ${titleText}</h4>
-                            <div style="font-size: 0.9rem; color: var(--text-main); font-weight: bold; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed ${colorMain}; opacity: 0.8;">
-                                Zpětná vazba: "${sanitize(data.userFeedback.feedback)}"
-                            </div>
-                            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; border-left: 2px solid ${colorMain};">
-                                ${rejectedDiff}
-                            </div>
-                        </div>
-                        <button onclick="this.parentNode.parentNode.remove()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; padding: 0 0 0 15px; transition: 0.2s;" onmouseover="this.style.color='${colorMain}'" onmouseout="this.style.color='var(--text-muted)'">×</button>
-                    </div>
-                `;
-            }
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        // Zpracování Inbox odznáčku (Počet zpráv pro vedoucího)
+        const inboxBadge = document.getElementById('omega-inbox-badge');
+        if (inboxBadge) {
+            inboxBadge.innerText = data.inboxCount;
+            inboxBadge.style.display = data.inboxCount > 0 ? 'inline-block' : 'none';
         }
 
-        // 🚀 OMEGA FIX: Tracker vizualizuje stavy pro Vedoucího
-        if (user === 'vedouci' || user === 'omega') {
-            updateDeliveryTruck(visualStatus, visualFeedback, visualDate);
-            if (typeof window.fetchInbox === 'function') window.fetchInbox();
+        // Zobrazení pop-up zpětné vazby (notifikace učiteli)
+        if (data.feedback) {
+            const isAccepted = data.feedback.status === 'accepted';
+            showToast(`🔔 Notifikace: Váš návrh byl ${isAccepted ? 'schválen' : 'zamítnut'}.`, isAccepted ? 'success' : 'error');
         }
 
-        const approvalForm = document.getElementById('admin-form-approval');
-        const saveBtn = document.querySelector('button[onclick="prepareDatabaseExport()"]');
-
-        if (data.status === 'pending') {
-            if (user === 'vedouci' && saveBtn) saveBtn.style.display = 'none';
-
-            if (user === 'vedeni') {
-                const mainTitle = document.querySelector('#omega-admin-portal h2');
-                if (mainTitle) mainTitle.innerHTML = '🛡️ Audit maturitního seznamu';
-                if (approvalForm) approvalForm.style.display = 'flex';
-                const emptyState = document.getElementById('vedeni-empty-state');
-                if (emptyState) emptyState.style.display = 'none';
-
-                document.getElementById('approval-info').innerHTML = `
-                    <div style="display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">
-                        <span>Vypracoval(a): <strong style="color: var(--text-main);">${sanitize(data.author)}</strong></span>
-                        <span>📅 ${data.date}</span>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.03); border-left: 3px solid var(--accent-primary); padding: 10px 15px; font-style: italic; color: var(--text-main); border-radius: 0 4px 4px 0;">
-                        "${sanitize(data.commitMsg)}"
-                    </div>
-                `;
-                if (data.payload) {
-                    const jsonMatch = data.payload.match(/KNIHY_DB:\s*(\[[\s\S]*?\])\s*};/);
-                    if (jsonMatch) {
-                        window.DRAFT_KNIHY_DB = JSON.parse(jsonMatch[1]);
-                        if (typeof renderDraftDiff === 'function') renderDraftDiff(window.DRAFT_KNIHY_DB);
-                    }
-                }
-            }
-        } else {
-            window.DRAFT_KNIHY_DB = null;
-            if (user !== 'vedeni' && saveBtn) saveBtn.style.display = 'block';
-
-            if (user === 'vedeni') {
-                if (approvalForm) approvalForm.style.display = 'none';
-                let emptyState = document.getElementById('vedeni-empty-state');
-                if (!emptyState) {
-                    emptyState = document.createElement('div');
-                    emptyState.id = 'vedeni-empty-state';
-                    emptyState.innerHTML = `<div style="text-align: center; padding: 40px 20px; color: var(--text-muted); background: rgba(52, 152, 219, 0.05); border: 1px dashed var(--accent-primary-light); border-radius: 8px; margin-bottom: 20px;">
-                        <div style="font-size: 2.5rem; margin-bottom: 10px; opacity: 0.8;">☕</div>
-                        <h3 style="margin: 0 0 5px 0; color: var(--accent-primary);">Vše je aktuální</h3>
-                        <p style="margin: 0; font-size: 0.9rem;">Momentálně nečekají žádné návrhy katedry ČJL na schválení.</p>
-                    </div>`;
-                    approvalForm.parentNode.insertBefore(emptyState, approvalForm);
-                }
-                emptyState.style.display = 'block';
-                // 🔔 OMEGA NOTIFIKACE: Vedení vidí nový návrh
-                if (window.LAST_SEEN_PENDING_DATE !== data.date) {
-                    window.triggerBrowserNotification("Nový návrh ke schválení!");
-                    window.LAST_SEEN_PENDING_DATE = data.date; // Zabráníme spamu při dalším pollingu
-                }
-            }
-        }
-    } catch (e) {}
+    } catch (e) {
+        console.warn("Sync failed:", e.message);
+    }
 };
 
 // ==========================================
@@ -4897,10 +4742,9 @@ window.openOmegaManual = function() {
     // Získání DOM elementů jednotlivých sekcí
     const l1 = document.getElementById('sop-l1-ucitel');
     const l2 = document.getElementById('sop-l2-vedouci');
-    const l3 = document.getElementById('sop-l3-admin');
 
     // Reset stylů (vše ztlumíme na 40% a zmenšíme scale)
-    [l1, l2, l3].forEach(el => {
+    [l1, l2].forEach(el => {
         if(el) {
             el.style.opacity = '0.4';
             el.style.transform = 'scale(0.98)';
@@ -4925,8 +4769,6 @@ window.openOmegaManual = function() {
     // Aplikace logiky na základě activeUser
     if (activeUserRole.includes('vedouci')) {
         highlight(l2);
-    } else if (activeUserRole.includes('vedeni')) {
-        highlight(l3);
     } else {
         // Fallback na řadového člena (ucitel)
         highlight(l1);
