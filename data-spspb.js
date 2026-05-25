@@ -140,28 +140,11 @@ window.OMEGA_CONFIG = {
         `;
     },
     OBORY_CONFIG: [
-        
-        {
-                "kod": "23-41-M/01 STROJÍRENSTVÍ",
-                "svp": "Strojírenství počítačové"
-        },
-        {
-                "kod": "26-41-M/01 ELEKTROTECHNIKA",
-                "svp": "Počítačové technologie"
-        },
-        {
-                "kod": "18-20M/01 INFORMAČNÍ TECHNOLOGIE",
-                "svp": "Informační technologie"
-        },
-        {
-                "kod": "36-47-M/01 STAVEBNICTVÍ",
-                "svp": "Pozemní stavitelství"
-        },
-        {
-                "kod": "36-47-M/01 STAVEBNICTVÍ",
-                "svp": "Pozemní stavitelství a architektura"
-        }
-
+        { "kod": "23-41-M/01 STROJÍRENSTVÍ", "svp": "Strojírenství počítačové" },
+        { "kod": "26-41-M/01 ELEKTROTECHNIKA", "svp": "Počítačové technologie" },
+        { "kod": "18-20M/01 INFORMAČNÍ TECHNOLOGIE", "svp": "Informační technologie" },
+        { "kod": "36-47-M/01 STAVEBNICTVÍ", "svp": "Pozemní stavitelství" },
+        { "kod": "36-47-M/01 STAVEBNICTVÍ", "svp": "Pozemní stavitelství a architektura" }
     ],
     KNIHY_DB:     [
             {
