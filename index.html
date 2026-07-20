@@ -443,14 +443,10 @@
                 🚀 Ostrý zápis do produkce
             </button>
 
-            <div id="grid-action-print" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                <button type="button" class="om-btn om-btn-pdf" onclick="openAdminPdfEditor()">
-                    🖨️ Tisknout školní seznam (PDF)
-                </button>
-                <button type="button" class="om-btn om-btn-pdf" onclick="window.printBlankStudentForm()">
-                    📄 Tisknout prázdný formulář
-                </button>
-            </div>
+        
+            <button type="button" id="btn-open-pdf" class="btn" onclick="openAdminPdfEditor()" style="display: none; width: 100%; padding: 12px; font-size: 0.9rem; margin-top: 20px; background: transparent; border: 1px dashed var(--text-muted); color: var(--text-muted); cursor: pointer; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'; this.style.color='var(--text-main)';" onmouseout="this.style.borderColor='var(--text-muted)'; this.style.color='var(--text-muted)';">
+                🖨️ Otevřít PDF Editor pro tisk
+            </button>
         </div>
 
         <!-- DISASTER RECOVERY -->

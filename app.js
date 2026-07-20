@@ -2510,7 +2510,7 @@ async function enterAdminUI(userRole) {
         const gridL2Top = document.getElementById('grid-action-l2-top'); // 🚀 FIX: Nové ID pro horní řadu
         const btnCommitL2 = document.getElementById('btn-commit-l2');    // 🚀 FIX: Nové ID pro ostrou produkci
         const oboryBtn = document.getElementById('btn-save-obory');
-        const printGrid = document.getElementById('grid-action-print'); // 🚀 Nahrazuje pdfBtn
+        const pdfBtn = document.getElementById('btn-open-pdf');
         
         // Dynamické vyhledání bloku Disaster Recovery
         const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
@@ -2529,14 +2529,14 @@ async function enterAdminUI(userRole) {
             if (gridL2Top) gridL2Top.style.display = 'grid';
             if (btnCommitL2) btnCommitL2.style.display = 'block';
             if (oboryBtn) oboryBtn.style.display = 'inline-block'; // 🚀 FIX: Odkrytí tlačítka oborů
-            if (printGrid) printGrid.style.display = 'grid'; // 🚀 OMEGA FIX: Zobrazí obě tisková tlačítka
+            if (pdfBtn) pdfBtn.style.display = 'block';
             if (recoveryDiv) recoveryDiv.style.display = 'none'; 
         } else if (activeUser === 'omega') {
             if (btnInbox) btnInbox.style.display = 'none';
             if (gridL2Top) gridL2Top.style.display = 'grid';
             if (btnCommitL2) btnCommitL2.style.display = 'block';
             if (oboryBtn) oboryBtn.style.display = 'inline-block';
-            if (printGrid) printGrid.style.display = 'grid'; // 🚀 OMEGA FIX: Zobrazí obě tisková tlačítka
+            if (pdfBtn) pdfBtn.style.display = 'block';
             if (recoveryDiv) recoveryDiv.style.display = 'block';
         }
 
@@ -3773,19 +3773,30 @@ window.openAdminPdfEditor = function() {
     // --- HLAVNÍ DOKUMENT ---
     container.innerHTML = `
         <style>
-            /* 🚀 OMEGA HACK: Absolutní karanténa proti Dark Mode */
+            /* 🚀 OMEGA HACK: Absolutní karanténa proti Dark Mode a UI konfliktům */
             #admin-print-document { background-color: white !important; }
             #admin-print-document td, 
             #admin-print-document th { background-color: white !important; color: black !important; border-color: black !important; }
             #admin-print-document .editable-field { color: black !important; }
-
-            /* 🚀 OMEGA FIX: Destrukce mobilního WebKit Bugu (Zdvojená stránka) */
+            
+            /* 🚀 OMEGA FIX: Destrukce mobilního ořezu (WebKit Print Engine) */
             @media print {
+                /* Terminace veškerých výškových restrikcí */
                 html, body { height: auto !important; min-height: 100% !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
-                #omega-print-layer { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; display: block !important; height: auto !important; page-break-after: auto !important; }
+                
+                /* Skrytí UI vrstev */
+                body * { visibility: hidden; }
+                
+                /* Izolace a zviditelnění pouze tiskové vrstvy */
+                #omega-print-layer, #omega-print-layer * { visibility: visible; }
+                #omega-print-layer { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; display: block !important; height: auto !important; margin: 0 !important; padding: 10mm !important; }
+                
+                /* Prevence roztržení buněk tabulky */
+                tr { page-break-inside: avoid !important; }
+                
+                /* Vynucení přesných barev */
                 * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             }
-
         </style>
         <div style="font-family: Arial, Helvetica, sans-serif; color: black; line-height: 1.2; padding: 0; font-feature-settings: 'liga' 0, 'calt' 0; -webkit-font-smoothing: antialiased;">
             
@@ -3888,77 +3899,6 @@ window.openAdminPdfEditor = function() {
 
     modal.style.display = 'flex';
     document.body.classList.add('omega-admin-printing');
-};
-
-// ==========================================
-// 📄 GENERÁTOR VAKUA: Prázdný žákovský list
-// ==========================================
-window.printBlankStudentForm = function() {
-    const layer = document.getElementById('omega-print-layer');
-    if (!layer) return;
-
-    let rows = '';
-    for(let i = 1; i <= 20; i++) {
-        rows += `
-            <tr style="height: 32px;">
-                <td style="border: 1pt solid black; text-align: center; font-weight: bold; width: 8%;">${i}.</td>
-                <td style="border: 1pt solid black; width: 46%;"></td>
-                <td style="border: 1pt solid black; width: 46%;"></td>
-            </tr>
-        `;
-    }
-
-    layer.innerHTML = `
-        <style>
-            @media print {
-                html, body { height: auto !important; overflow: visible !important; background: white !important; margin: 0; padding: 0; }
-                body * { visibility: hidden; }
-                #omega-print-layer, #omega-print-layer * { visibility: visible; }
-                #omega-print-layer { position: absolute; left: 0; top: 0; width: 100%; display: block !important; padding: 15mm; box-sizing: border-box; }
-            }
-        </style>
-        <div style="font-family: Arial, sans-serif; color: black; line-height: 1.5;">
-            <h2 style="text-align: center; text-transform: uppercase; font-size: 14pt; margin-bottom: 30px;">
-                Vlastní seznam literárních děl k maturitní zkoušce
-            </h2>
-            
-            <div style="display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 11pt;">
-                <div><strong>Jméno a příjmení:</strong> ..............................................................</div>
-                <div><strong>Třída:</strong> .....................</div>
-                <div><strong>Školní rok:</strong> 20..... / 20.....</div>
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
-                <thead>
-                    <tr style="background: rgba(0,0,0,0.05);">
-                        <th style="border: 1.5pt solid black; padding: 8px;">Číslo</th>
-                        <th style="border: 1.5pt solid black; padding: 8px;">Autor (nebo anonym)</th>
-                        <th style="border: 1.5pt solid black; padding: 8px;">Název díla</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-            </table>
-
-            <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 11pt;">
-                <div><strong>Datum:</strong> ........................................</div>
-                <div><strong>Podpis žáka:</strong> ........................................................</div>
-            </div>
-        </div>
-    `;
-
-    document.body.classList.add('omega-admin-printing');
-    
-    // Asynchronní invokace tisku (čekáme na render DOMu)
-    setTimeout(() => {
-        window.print();
-        // Garbage Collection po tisku
-        setTimeout(() => {
-            document.body.classList.remove('omega-admin-printing');
-            layer.innerHTML = '';
-        }, 500);
-    }, 250);
 };
 
 // 🚀 OMEGA FIX: Garbage Collector pro tiskové vlákno (Duální čištění)
