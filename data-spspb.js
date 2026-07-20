@@ -224,6 +224,6 @@ window.OMEGA_CONFIG = {
 { "id": 64, "origId": 64, "dilo": "Vražda v Orient-expresu", "autor": "Agatha Christie", "druh": "epika", "obdobi": "svet20" },
 { "id": 65, "origId": 65, "dilo": "Velký Gatsby", "autor": "Francis Scott Fitzgerald", "druh": "epika", "obdobi": "svet20" },
 { "id": 66, "origId": 66, "dilo": "Pýcha a předsudek", "autor": "Jane Austenová", "druh": "epika", "obdobi": "19" },
-{ "id": 67, "origId": null, "dilo": "Bílá nemoc", "autor": "Karel Čapek", "druh": "drama", "obdobi": "cz20" }
+{ "id": 67, "origId": 67, "dilo": "Bílá nemoc", "autor": "Karel Čapek", "druh": "drama", "obdobi": "cz20" }
     ]
 };

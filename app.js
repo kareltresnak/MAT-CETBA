@@ -14,6 +14,7 @@ function sanitize(str) {
     const reg = /[&<>"'/]/ig;
     return str.replace(reg, (match) => (map[match]));
 }
+window.OMEGA_APP_BOOT_TIME = Date.now();
 let waitingRoomTimer = null;
 let pendingCreds = { u: "", p: "" }; // Dočasné úložiště pro čekajícího učitele
 const MAPA_OBDOBI = { "do18": "Do konce 18. st.", "19": "19. století", "cz20": "ČR 20. a 21. st.", "svet20": "Svět 20. a 21. st." };
@@ -2509,7 +2510,7 @@ async function enterAdminUI(userRole) {
         const gridL2Top = document.getElementById('grid-action-l2-top'); // 🚀 FIX: Nové ID pro horní řadu
         const btnCommitL2 = document.getElementById('btn-commit-l2');    // 🚀 FIX: Nové ID pro ostrou produkci
         const oboryBtn = document.getElementById('btn-save-obory');
-        const pdfBtn = document.getElementById('btn-open-pdf');
+        const printGrid = document.getElementById('grid-action-print'); // 🚀 Nahrazuje pdfBtn
         
         // Dynamické vyhledání bloku Disaster Recovery
         const recoveryHeaders = Array.from(document.querySelectorAll('#omega-admin-portal h3'));
@@ -2528,14 +2529,14 @@ async function enterAdminUI(userRole) {
             if (gridL2Top) gridL2Top.style.display = 'grid';
             if (btnCommitL2) btnCommitL2.style.display = 'block';
             if (oboryBtn) oboryBtn.style.display = 'inline-block'; // 🚀 FIX: Odkrytí tlačítka oborů
-            if (pdfBtn) pdfBtn.style.display = 'block';
+            if (printGrid) printGrid.style.display = 'grid'; // 🚀 OMEGA FIX: Zobrazí obě tisková tlačítka
             if (recoveryDiv) recoveryDiv.style.display = 'none'; 
         } else if (activeUser === 'omega') {
             if (btnInbox) btnInbox.style.display = 'none';
             if (gridL2Top) gridL2Top.style.display = 'grid';
             if (btnCommitL2) btnCommitL2.style.display = 'block';
             if (oboryBtn) oboryBtn.style.display = 'inline-block';
-            if (pdfBtn) pdfBtn.style.display = 'block';
+            if (printGrid) printGrid.style.display = 'grid'; // 🚀 OMEGA FIX: Zobrazí obě tisková tlačítka
             if (recoveryDiv) recoveryDiv.style.display = 'block';
         }
 
@@ -3280,7 +3281,7 @@ window.prepareDatabaseExport = async function(targetEndpoint = '/') {
             book._finalId = counter; 
 
             let exportOrigId = book.origId || (book._original ? book._original.id : book.id);
-            if (book._isAdded) exportOrigId = null;
+            if (book._isAdded) exportOrigId = counter;
 
             newDb.push({
                 id: counter++,
@@ -3348,13 +3349,14 @@ window.prepareDatabaseExport = async function(targetEndpoint = '/') {
 
         let notes = [];
 
+        // 🚀 OMEGA FIX: Čistá injekce bez inline balastu
         const formatBook = (id, k) => `
-            <div style="display: grid; grid-template-columns: 55px 3fr 2.5fr 1fr 1.5fr; gap: 10px; align-items: center; width: 100%;">
+            <div class="omega-history-grid">
                 <strong style="color: var(--accent-primary-light);">ID ${id}</strong>
-                <span style="font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sanitize(k.dilo)}</span>
-                <span style="color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${sanitize(k.autor)}</span>
+                <span style="font-weight: bold; color: var(--text-main);">${sanitize(k.dilo)}</span>
+                <span style="color: var(--text-muted);">${sanitize(k.autor)}</span>
                 <span style="color: var(--text-muted); font-size: 0.9em;">${k.druh}</span>
-                <span style="color: var(--text-muted); font-size: 0.9em; text-align: right;">${MAPA_OBDOBI[k.obdobi] || k.obdobi}</span>
+                <span style="color: var(--text-muted); font-size: 0.9em;">${MAPA_OBDOBI[k.obdobi] || k.obdobi}</span>
             </div>`;
 
         const added = adminVirtualDb.filter(k => k._isAdded && !k._isDeleted);
@@ -3776,6 +3778,14 @@ window.openAdminPdfEditor = function() {
             #admin-print-document td, 
             #admin-print-document th { background-color: white !important; color: black !important; border-color: black !important; }
             #admin-print-document .editable-field { color: black !important; }
+
+            /* 🚀 OMEGA FIX: Destrukce mobilního WebKit Bugu (Zdvojená stránka) */
+            @media print {
+                html, body { height: auto !important; min-height: 100% !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+                #omega-print-layer { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; display: block !important; height: auto !important; page-break-after: auto !important; }
+                * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            }
+
         </style>
         <div style="font-family: Arial, Helvetica, sans-serif; color: black; line-height: 1.2; padding: 0; font-feature-settings: 'liga' 0, 'calt' 0; -webkit-font-smoothing: antialiased;">
             
@@ -3880,6 +3890,77 @@ window.openAdminPdfEditor = function() {
     document.body.classList.add('omega-admin-printing');
 };
 
+// ==========================================
+// 📄 GENERÁTOR VAKUA: Prázdný žákovský list
+// ==========================================
+window.printBlankStudentForm = function() {
+    const layer = document.getElementById('omega-print-layer');
+    if (!layer) return;
+
+    let rows = '';
+    for(let i = 1; i <= 20; i++) {
+        rows += `
+            <tr style="height: 32px;">
+                <td style="border: 1pt solid black; text-align: center; font-weight: bold; width: 8%;">${i}.</td>
+                <td style="border: 1pt solid black; width: 46%;"></td>
+                <td style="border: 1pt solid black; width: 46%;"></td>
+            </tr>
+        `;
+    }
+
+    layer.innerHTML = `
+        <style>
+            @media print {
+                html, body { height: auto !important; overflow: visible !important; background: white !important; margin: 0; padding: 0; }
+                body * { visibility: hidden; }
+                #omega-print-layer, #omega-print-layer * { visibility: visible; }
+                #omega-print-layer { position: absolute; left: 0; top: 0; width: 100%; display: block !important; padding: 15mm; box-sizing: border-box; }
+            }
+        </style>
+        <div style="font-family: Arial, sans-serif; color: black; line-height: 1.5;">
+            <h2 style="text-align: center; text-transform: uppercase; font-size: 14pt; margin-bottom: 30px;">
+                Vlastní seznam literárních děl k maturitní zkoušce
+            </h2>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 11pt;">
+                <div><strong>Jméno a příjmení:</strong> ..............................................................</div>
+                <div><strong>Třída:</strong> .....................</div>
+                <div><strong>Školní rok:</strong> 20..... / 20.....</div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 11pt;">
+                <thead>
+                    <tr style="background: rgba(0,0,0,0.05);">
+                        <th style="border: 1.5pt solid black; padding: 8px;">Číslo</th>
+                        <th style="border: 1.5pt solid black; padding: 8px;">Autor (nebo anonym)</th>
+                        <th style="border: 1.5pt solid black; padding: 8px;">Název díla</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 11pt;">
+                <div><strong>Datum:</strong> ........................................</div>
+                <div><strong>Podpis žáka:</strong> ........................................................</div>
+            </div>
+        </div>
+    `;
+
+    document.body.classList.add('omega-admin-printing');
+    
+    // Asynchronní invokace tisku (čekáme na render DOMu)
+    setTimeout(() => {
+        window.print();
+        // Garbage Collection po tisku
+        setTimeout(() => {
+            document.body.classList.remove('omega-admin-printing');
+            layer.innerHTML = '';
+        }, 500);
+    }, 250);
+};
+
 // 🚀 OMEGA FIX: Garbage Collector pro tiskové vlákno (Duální čištění)
 window.addEventListener('afterprint', () => {
     // 1. Zničení studentské paměti a jejího agresivního CSS
@@ -3909,12 +3990,42 @@ window.openChangelog = function() {
     const dbData = window.OMEGA_CONFIG.CHANGELOG_DB || [];
     const dbChanges = dbData.filter(i => i.type === 'db');
 
-    const renderHtml = dbChanges.map((entry, index) => {
-        // První (nejnovější) záznam bude rozevřený, ostatní sbalené
+    // 🚀 OMEGA STYLES: CSS Grid Matrix pro dokonalou responsivitu
+    const gridStyles = `
+        <style>
+            .omega-history-grid { display: grid; grid-template-columns: 50px 3fr 2.5fr 1fr 1.5fr; gap: 10px; align-items: center; width: 100%; }
+            .omega-history-grid > span { white-space: normal !important; overflow: visible !important; word-break: break-word; }
+            @media (max-width: 650px) {
+                .omega-history-grid {
+                    grid-template-columns: 45px 1fr; gap: 2px 10px; align-items: center;
+                    background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px;
+                    border: 1px solid rgba(255,255,255,0.05); margin-top: 4px;
+                }
+                /* ID */
+                .omega-history-grid > strong:nth-child(1) { grid-column: 1; grid-row: 1 / 3; align-self: start; padding-top: 2px; font-size: 0.85em; }
+                /* Dílo */
+                .omega-history-grid > span:nth-child(2) { grid-column: 2; grid-row: 1; font-size: 1.05em; font-weight: bold !important; color: var(--text-main); }
+                /* Autor */
+                .omega-history-grid > span:nth-child(3) { grid-column: 2; grid-row: 2; font-size: 0.9em; margin-bottom: 6px; color: var(--text-muted); }
+                /* Druh (Vlevo pod čarou) */
+                .omega-history-grid > span:nth-child(4) { grid-column: 1 / 3; grid-row: 3; justify-self: start; font-size: 0.8em; border-top: 1px dashed rgba(255,255,255,0.1); width: 100%; padding-top: 6px; color: var(--accent-primary-light) !important; text-transform: uppercase; letter-spacing: 0.5px; }
+                /* Období (Vpravo pod čarou ve stejné buňce!) */
+                .omega-history-grid > span:nth-child(5) { grid-column: 1 / 3; grid-row: 3; justify-self: end; font-size: 0.8em; padding-top: 6px; text-align: right !important; }
+            }
+        </style>
+    `;
+
+    const renderHtml = gridStyles + dbChanges.map((entry, index) => {
         const isFirst = index === 0; 
         const contentDisplay = isFirst ? 'block' : 'none';
         const icon = isFirst ? '▲' : '▼';
         
+        let rawNotes = Array.isArray(entry.notes) ? entry.notes.join('') : entry.notes;
+        
+        // 🚀 OMEGA JIT PATCH: Nechytáme se detailů, nahradíme celý úvodní tag jakékoliv staré mřížky za čistou třídu
+        rawNotes = rawNotes.replace(/<div style="display: grid; grid-template-columns: 55px[^>]+">/g, '<div class="omega-history-grid">');
+        rawNotes = rawNotes.replace(/<div style="display: flex; flex-wrap: wrap; column-gap: 15px[^>]+">/g, '<div class="omega-history-grid">');
+
         return `
         <div style="margin-bottom: 15px; background: var(--bg-base); border-radius: 6px; border-left: 3px solid var(--accent-primary-light); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             
@@ -3930,7 +4041,7 @@ window.openChangelog = function() {
             </div>
             
             <div style="padding: 0 15px 15px 15px; display: ${contentDisplay}; border-top: 1px dashed var(--border); margin-top: 5px; padding-top: 15px;">
-                ${Array.isArray(entry.notes) ? entry.notes.join('') : entry.notes}
+                ${rawNotes}
             </div>
             
         </div>`;
@@ -4594,6 +4705,31 @@ window.checkSystemStatus = async function() {
         
         if (!res.ok) return;
         const data = await res.json();
+
+        // ==========================================================
+        // 🚀 OMEGA CACHE PURGE: Okamžitá invalidace (Highest Priority)
+        // ==========================================================
+        if (data.latestBuild && data.latestBuild > window.OMEGA_APP_BOOT_TIME) {
+            console.warn("Detekována nová produkční verze. Vykonávám Cache Purge...");
+            
+            // 1. Vyvraždění paměti Service Workeru
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    for (let name of names) caches.delete(name);
+                });
+            }
+            
+            // 2. Upozornění uživatele
+            showToast("🚀 Byla nasazena nová verze! Aplikace se aktualizuje...", "success");
+            
+            // 3. Tvrdý refresh s Cache-Busterem (obejití CDN a lokální cache)
+            setTimeout(() => {
+                window.location.href = window.location.pathname + "?v=" + new Date().getTime();
+            }, 2500);
+            
+            return; // 🛑 Terminace vlákna. Nic dalšího se už nevykoná.
+        }
+        // ==========================================================
         
         // Zpracování Inbox odznáčku (Počet zpráv pro vedoucího)
         const inboxBadge = document.getElementById('omega-inbox-badge');
