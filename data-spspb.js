@@ -139,8 +139,19 @@ window.OMEGA_CONFIG = {
                         ${renderRows(buckets.dalsi)}
 
                         <tr>
-                            <td colspan="3" class="footer-cell">podpis:</td>
-                            <td class="footer-cell">zkontroloval:</td>
+                            <td colspan="4" class="footer-cell" style="padding: 0; border-top: 1pt solid black;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; height: 100%; min-height: 26px; align-items: center; box-sizing: border-box;">
+                                    <div style="padding: 2px 6px; border-right: 1pt solid black; height: 100%; display: flex; align-items: center;">
+                                        podpis:
+                                    </div>
+                                    <div style="padding: 2px 6px; border-right: 1pt solid black; height: 100%; display: flex; align-items: center;">
+                                        datum:
+                                    </div>
+                                    <div style="padding: 2px 6px; height: 100%; display: flex; align-items: center;">
+                                        zkontroloval:
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
