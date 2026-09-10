@@ -256,7 +256,7 @@ tr.selected td:nth-child(2) { color: var(--accent-primary); font-weight: bold; }
     .info-value { font-weight: normal !important; font-size: 11pt; text-align: left !important; }
 
     .col-headers td { text-align: center !important; font-size: 11pt; font-weight: normal; padding-top: 6px !important; padding-bottom: 6px !important; }
-    .col-c { text-align: left !important; font-weight: bold !important; }
+    .col-c { text-align: center !important; font-weight: bold !important; }
     .col-cs { text-align: center !important; }
     .col-autor { text-align: left !important; }
     .col-nazev { text-align: left !important; }
