@@ -1,4 +1,4 @@
-const VERSION = '10.0.4';
+const VERSION = '10.1.0';
 const CACHE_NAME = `SPS_Selekce_MAT_CETBY_v${VERSION}`; 
 
 // 🚀 OMEGA FIX: Dynamický Cache-Busting (Obejití HTTP Cache prohlížeče)
@@ -11,15 +11,54 @@ const ASSETS_TO_CACHE = [
     `./data-spspb.js?v=${VERSION}`,
     './spspb-logo-2000px.png',
     './manifest.json',
-    './qrcode.min.js'
+    './qrcode.min.js',
+    // Moduly Core
+    `./js/core/config.js?v=${VERSION}`,
+    `./js/core/security.js?v=${VERSION}`,
+    `./js/core/telemetry.js?v=${VERSION}`,
+    `./js/core/theme.js?v=${VERSION}`,
+    `./js/core/pwa.js?v=${VERSION}`,
+    // Moduly Shared
+    `./js/shared/toast.js?v=${VERSION}`,
+    `./js/shared/notifications.js?v=${VERSION}`,
+    `./js/shared/status.js?v=${VERSION}`,
+    `./js/shared/profile.js?v=${VERSION}`,
+    `./js/shared/changelog.js?v=${VERSION}`,
+    `./js/shared/manual.js?v=${VERSION}`,
+    // Moduly Diff
+    `./js/diff/lis-engine.js?v=${VERSION}`,
+    // Moduly Student
+    `./js/student/state.js?v=${VERSION}`,
+    `./js/student/stats.js?v=${VERSION}`,
+    `./js/student/table.js?v=${VERSION}`,
+    `./js/student/filters.js?v=${VERSION}`,
+    `./js/student/transfer.js?v=${VERSION}`,
+    `./js/student/print.js?v=${VERSION}`,
+    `./js/student/reset.js?v=${VERSION}`,
+    // Moduly Admin
+    `./js/admin/state.js?v=${VERSION}`,
+    `./js/admin/auth.js?v=${VERSION}`,
+    `./js/admin/session.js?v=${VERSION}`,
+    `./js/admin/ui.js?v=${VERSION}`,
+    `./js/admin/database.js?v=${VERSION}`,
+    `./js/admin/table.js?v=${VERSION}`,
+    `./js/admin/teleport.js?v=${VERSION}`,
+    `./js/admin/users.js?v=${VERSION}`,
+    `./js/admin/changelog.js?v=${VERSION}`,
+    `./js/admin/audit.js?v=${VERSION}`,
+    `./js/admin/export.js?v=${VERSION}`,
+    `./js/admin/inbox.js?v=${VERSION}`,
+    `./js/admin/recovery.js?v=${VERSION}`,
+    `./js/admin/print.js?v=${VERSION}`
 ];
 
 // Fáze 1: Instalace a nabití Cache
 self.addEventListener('install', (event) => {
+    self.skipWaiting(); // 🚀 OMEGA AGGRESSIVE TAKEOVER: Nečekáme na nic.
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
-                console.log('[Service Worker] Přednačítání offline dat');
+                console.log('[Service Worker] Přednačítání offline dat v' + VERSION);
                 return cache.addAll(ASSETS_TO_CACHE);
             })
     );
@@ -50,7 +89,7 @@ self.addEventListener('fetch', (event) => {
         return; // SW se do toho nebude plést, nechá to na čisté síti
     }
 
-    // PRAVIDLO A: Databáze kánonu (data-spspb.js) -> NETWORK FIRST
+    // PRAVIDLO A: Databáze děl (školní seznam data-spspb.js) -> NETWORK FIRST
     if (url.pathname.includes('data-spspb.js')) {
         event.respondWith(
             fetch(event.request)
@@ -88,16 +127,4 @@ self.addEventListener('fetch', (event) => {
                 })
         );
     }
-});
-
-// Fáze 1: Instalace a nabití Cache
-self.addEventListener('install', (event) => {
-    self.skipWaiting(); // 🚀 OMEGA AGGRESSIVE TAKEOVER: Nečekáme na nic.
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[SW] Přednačítání offline dat');
-                return cache.addAll(ASSETS_TO_CACHE);
-            })
-    );
 });

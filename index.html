@@ -62,6 +62,9 @@
         <main class="content">
             <div class="top-bar">
                 <input type="text" id="search-box" placeholder="Hledat dílo či autora... (Esc pro vyčištění)" autocomplete="off">
+                <button type="button" id="btn-student-guide" class="guide-toggle-btn" onclick="openStudentManual()" title="Jak sestavit maturitní seznam četby">
+                    <span style="font-size: 1rem;">❓</span> <span class="guide-toggle-text">Nápověda</span>
+                </button>
                 <button type="button" id="theme-toggle" class="theme-switch" aria-label="Přepnout motiv">
                     <div class="theme-switch-track">
                         <span class="icon sun">☀️</span>
@@ -95,7 +98,12 @@
 
         <aside class="sidebar">
             <div class="sidebar-scroll">
-                <h1 class="brand">SELEKCE <span class="brand-dim">ČETBY</span></h1>
+                <div class="sidebar-brand-container">
+                    <h1 class="brand" id="brand-header" style="cursor: pointer; user-select: none;" title="Selekce četby (5× klik pro režim učitele)"><span class="brand-text">SELEKCE <span class="brand-dim">ČETBY</span></span></h1>
+                    <button type="button" id="sidebar-student-guide" onclick="openStudentManual()" class="guide-toggle-btn" title="Jak sestavit maturitní seznam četby" style="height: 34px; padding: 0 10px; font-size: 0.8rem; border-radius: 17px;">
+                        <span style="font-size: 0.95rem;">❓</span> <span class="guide-toggle-text">Nápověda</span>
+                    </button>
+                </div>
                 
                 <details class="accordion">
                     <summary class="accordion-summary">👤 Osobní údaje</summary>
@@ -164,7 +172,7 @@
                     <div style="font-weight: bold; font-size: 0.8rem; color: var(--text-muted);">Selekce četby // <span id="app-version-val">...</span></div>
                 </div>
                 <div style="margin-top: 15px; font-size: 0.7rem; color: var(--text-muted); opacity: 0.5; text-align: center; border-top: 1px dashed var(--border); padding-top: 10px; line-height: 1.4; transition: opacity 0.3s ease; cursor: default;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">
-                    &copy; 2026 Karel Třešňák
+                    &copy; <span id="omega-copyright-year">2026</span> Karel Třešňák
                 </div>
             </div>
         </aside>
@@ -426,12 +434,9 @@
 
         <div id="omega-action-center" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);">
             
-            <div id="grid-action-l2-top" style="display: none; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                <button onclick="window.saveToStaging()" class="action-btn btn-staging">
+            <div id="grid-action-l2-top" style="display: none; margin-bottom: 20px;">
+                <button onclick="window.saveToStaging()" class="action-btn btn-staging" style="width: 100%;">
                     💾 Uložit do 'Uložených nápadů'
-                </button>
-                <button id="btn-save-obory" onclick="window.saveOboryConfig()" class="action-btn btn-obory" style="display: none;">
-                    ⚙️ Uložit ŠVP obory
                 </button>
             </div>
 
@@ -441,11 +446,6 @@
 
             <button id="btn-commit-l2" onclick="window.commitToProduction()" class="action-btn btn-prod" style="display: none;">
                 🚀 Ostrý zápis do produkce
-            </button>
-
-        
-            <button type="button" id="btn-open-pdf" class="btn" onclick="openAdminPdfEditor()" style="display: none; width: 100%; padding: 12px; font-size: 0.9rem; margin-top: 20px; background: transparent; border: 1px dashed var(--text-muted); color: var(--text-muted); cursor: pointer; border-radius: 6px; transition: 0.2s;" onmouseover="this.style.borderColor='var(--text-main)'; this.style.color='var(--text-main)';" onmouseout="this.style.borderColor='var(--text-muted)'; this.style.color='var(--text-muted)';">
-                🖨️ Otevřít PDF Editor pro tisk
             </button>
         </div>
 
@@ -457,66 +457,6 @@
             <button class="btn" onclick="document.getElementById('restore-file-input').click()" style="width: 100%; padding: 12px; background: transparent; border: 1px dashed var(--text-muted); color: var(--text-muted);">
                 ⏪ Nahrát záložní soubor
             </button>
-        </div>
-        
-        <!-- ZACHRÁNĚNÉ MODÁLY -->
-        <!-- (Tvůj původní kód modálů pro potvrzení a obnovu zde zůstává nezměněn) -->
-
-        <div id="admin-print-editor-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-base); z-index: 20000; overflow-y: auto; flex-direction: column; align-items: center; padding-bottom: 50px;">
-        
-        <div class="no-print" style="position: sticky; top: 0; width: 100%; background: var(--bg-surface); padding: 10px 20px; border-bottom: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 20001; box-sizing: border-box;">
-            <div style="display: flex; flex-direction: column;">
-                <h3 style="margin: 0; color: var(--text-main); font-size: 1.1rem;">Náhled k tisku</h3>
-                <span style="font-size: 0.8rem; color: var(--accent-primary);">💡 Školní rok, vzdělávací obory a stanovení ředitele lze přepsat.</span>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn" onclick="document.getElementById('admin-print-editor-modal').style.display='none'; document.body.classList.remove('omega-admin-printing');" style="background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem;">Zavřít editor</button>
-                <button class="btn success-btn" onclick="window.print()" style="font-weight: bold; font-size: 0.9rem; padding: 10px 20px;">🖨️ Tisk / Uložit PDF</button>
-            </div>
-        </div>
-
-        <div id="admin-print-document-plátno" style="display: flex; justify-content: center; width: 100%;">
-            <div id="admin-print-document" style="background: white; color: black; width: 210mm; min-height: 297mm; padding: 15mm; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.2); box-sizing: border-box; font-family: Arial, Helvetica, sans-serif;">
-                </div>
-        </div>
-
-        <style>
-            .editable-field { transition: 0.2s; outline: none; border-radius: 2px; }
-            .editable-field:hover { background: rgba(245, 158, 11, 0.15); box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1); cursor: text; }
-            .editable-field:focus { background: rgba(245, 158, 11, 0.05); box-shadow: 0 0 0 2px #f59e0b; }
-            
-            @media print {
-                @page { size: A4 portrait; margin: 10mm 12mm; } 
-                
-                /* 🚀 OMEGA FIX: Tyto agresivní styly se zapnou POUZE pro administrátora */
-                body.omega-admin-printing * { visibility: hidden !important; overflow: visible !important; }
-                body.omega-admin-printing #admin-print-editor-modal, 
-                body.omega-admin-printing #admin-print-editor-modal * { visibility: visible !important; }
-                
-                body.omega-admin-printing #admin-print-editor-modal { 
-                    position: absolute !important; left: 0 !important; top: 0 !important; 
-                    width: 100% !important; height: auto !important;
-                    padding: 0 !important; margin: 0 !important;
-                    background: white !important; display: block !important;
-                }
-                
-                body.omega-admin-printing #admin-print-document-plátno { display: block !important; width: 100% !important; height: auto !important; padding: 0 !important; margin: 0 !important; }
-                
-                body.omega-admin-printing #admin-print-document { 
-                    width: 100% !important; height: auto !important;
-                    padding: 0 !important; margin: 0 !important; 
-                    box-shadow: none !important; border: none !important;
-                    display: block !important;
-                }
-                
-                body.omega-admin-printing .no-print { display: none !important; }
-                body.omega-admin-printing * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-                
-                body.omega-admin-printing table { page-break-inside: auto !important; }
-                body.omega-admin-printing thead { display: table-header-group !important; }
-                body.omega-admin-printing tr { page-break-inside: avoid !important; page-break-after: auto !important; }
-            }
-        </style>
         </div>
 
         <div id="omega-confirm-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); z-index: 10000; justify-content: center; align-items: center;">
@@ -610,6 +550,32 @@
             <div style="display: flex; gap: 12px;">
                 <button id="btn-auth-cancel" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem;">Zrušit</button>
                 <button id="btn-auth-submit" class="btn success-btn" style="flex: 1; font-weight: bold;">Vstoupit</button>
+            </div>
+        </div>
+    </div>
+    <div id="omega-write-conflict-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); z-index: 10010; justify-content: center; align-items: center;">
+        <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--accent-red, #da2128); width: 90%; max-width: 480px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+            <div style="font-size: 3rem; margin-bottom: 0.8rem;">⚠️</div>
+            <h3 style="margin-top: 0; color: var(--text-main); font-size: 1.25rem;">Konflikt souběžných úprav databáze</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 18px;">
+                V produkční databázi došlo k <strong>souběžnému zápisu změn</strong> z jiné relace nebo jiného zařízení. Vaše rozpracované úpravy vycházejí ze starší verze.
+            </p>
+            <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; font-size: 0.82rem; text-align: left; color: var(--text-muted); line-height: 1.6;">
+                <div>🛑 <strong>Důvod:</strong> Ostrý zápis byl zastaven, aby nedošlo k přepsání cizích schválených úprav.</div>
+                <div>💡 <strong>Doporučení:</strong> Uložte si své změny do Cloud Stash na PIN a poté načtěte aktuální produkční verzi.</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" onclick="stashAndReloadFromConflict()" class="btn" style="width: 100%; font-weight: bold; background: var(--accent-primary); color: white; border: none; padding: 10px;">
+                    💾 Uložit moji práci do Stash (PIN)
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closeWriteConflictModal()" class="btn" style="flex: 1; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">
+                        Zavřít
+                    </button>
+                    <button type="button" onclick="forceReloadProductionDb()" class="btn danger-btn" style="flex: 1.2; background: rgba(218, 33, 40, 0.15); border: 1px solid var(--accent-red); color: var(--accent-red); font-weight: bold;">
+                        Zahodit a načíst web
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -721,19 +687,22 @@
             </div>
         </div>
     </div>
-    <div id="omega-changelog-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 30px; width: 90%; max-width: 650px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <!-- MODÁL: HISTORIE ZMĚN V KÁNONU (CHANGELOG) -->
+    <div id="omega-changelog-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 25000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div class="changelog-modal-card">
             
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px;">
-                <h2 style="margin: 0; color: var(--accent-primary); font-size: 1.5rem;">📚 ÚPRAVY SEZNAMU KNIH</h2>
-                <button onclick="closeChangelog()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">×</button>
+            <div class="changelog-modal-header">
+                <h2>
+                    <span>📚</span> <span>Úpravy seznamu knih</span>
+                </h2>
+                <button onclick="closeChangelog()" class="changelog-close-btn">&times;</button>
             </div>
             
-            <div id="changelog-content" style="overflow-y: auto; flex-grow: 1; padding-right: 10px;">
-                </div>
+            <div id="changelog-content" class="changelog-modal-content">
+            </div>
 
-            <div style="margin-top: 20px; text-align: right; padding-top: 15px; border-top: 1px solid var(--border);">
-                <button onclick="closeChangelog()" class="btn" style="background: var(--bg-base); border: 1px solid var(--border); color: var(--text-main);">Zavřít</button>
+            <div class="changelog-modal-footer">
+                <button onclick="closeChangelog()" class="btn btn-close-changelog">Zavřít</button>
             </div>
         </div>
     </div>
@@ -900,87 +869,207 @@
             </div>
         </div>
     </div>
-    <div id="omega-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 25000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 850px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+    <!-- MODÁL: NÁPOVĚDA PRO STUDENTY (JAK SESTAVIT SEZNAM ČETBY) -->
+    <div id="omega-student-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 25000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
             
             <div style="padding: 20px 25px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
-                    📚 Standardní operační postupy
-                </h2>
-                <button onclick="document.getElementById('omega-manual-modal').style.display='none'" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+                <div>
+                    <h2 style="margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 10px; font-size: 1.25rem;">
+                        📖 Jak sestavit maturitní seznam četby
+                    </h2>
+                    <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">Průvodce výběrem 20 děl k ústní maturitní zkoušce z českého jazyka a literatury.</p>
+                </div>
+                <button onclick="closeStudentManual()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.6rem; cursor: pointer; transition: 0.2s; line-height: 1;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
             </div>
 
-            <div style="padding: 25px; overflow-y: auto; color: var(--text-main); font-size: 0.95rem; line-height: 1.6;">
-                <div style="display: flex; flex-direction: column; gap: 15px;" id="sop-container">
-                    
-                    <div id="sop-l1-ucitel" style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-surface);">
-                        <div style="background: color-mix(in srgb, var(--accent-primary) 8%, transparent); padding: 15px 20px; border-bottom: 1px solid var(--border); color: var(--accent-primary); font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 1.3rem;">📝</span> L1: Člen katedry ČJL (Příprava návrhu)
-                        </div>
-                        <div style="padding: 20px; background: var(--bg-base);">
-                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
-                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">1</div>
-                                <div style="line-height: 1.5; font-size: 0.95rem;">
-                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Úprava a řazení</strong>
-                                    <span style="color: var(--text-muted);">Pro změnu textu klikněte do buňky. Pořadí měníte tažením za ikonu <span style="opacity: 0.6;">☰</span> vlevo.</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
-                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">2</div>
-                                <div style="line-height: 1.5; font-size: 0.95rem;">
-                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Přerušení práce (PIN)</strong>
-                                    <span style="color: var(--text-muted);">Pokud potřebujete odejít, klikněte na <em>"Odložit práci na později"</em>. Systém vám vygeneruje osobní kód pro bezpečný návrat.</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 15px; align-items: flex-start;">
-                                <div style="background: var(--accent-primary); color: var(--bg-surface); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; box-shadow: 0 0 10px color-mix(in srgb, var(--accent-primary) 50%, transparent);">3</div>
-                                <div style="line-height: 1.5; font-size: 0.95rem;">
-                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Odeslání hotové práce</strong>
-                                    <span style="color: var(--text-muted);">Jakmile jste s úpravami spokojeni, klikněte dole na tlačítko <em>"Odeslat nápady"</em>. Návrh přistane u vedoucí(ho).</span>
-                                </div>
-                            </div>
-                        </div>
+            <div style="padding: 25px; overflow-y: auto; color: var(--text-main); font-size: 0.92rem; line-height: 1.6; display: flex; flex-direction: column; gap: 16px;">
+                
+                <div class="manual-step-card">
+                    <div class="manual-step-num">1</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">📚 Výběr děl ze seznamu</strong>
+                        <span style="color: var(--text-muted);">Kliknutím na kterýkoliv řádek v tabulce knihu přidáte do svého seznamu (nebo ji opětovným kliknutím odeberete). Vybíráte celkem <strong>přesně 20 děl</strong>.</span>
                     </div>
+                </div>
 
-                    <div id="sop-l2-vedouci" style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); background: var(--bg-surface);">
-                        <div style="background: color-mix(in srgb, var(--accent-primary) 8%, transparent); padding: 15px 20px; border-bottom: 1px solid var(--border); color: var(--accent-primary); font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 1.3rem;">⚖️</span> L2: Vedoucí katedry (Revize a Slučování)
-                        </div>
-                        <div style="padding: 20px; background: var(--bg-base);">
-                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
-                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">1</div>
-                                <div style="line-height: 1.5; font-size: 0.95rem;">
-                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Příjem návrhů</strong>
-                                    <span style="color: var(--text-muted);">V horním menu sledujte ikonu <em>"Pošta"</em>. Zde se hromadí odeslané nápady od členů katedry.</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
-                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">2</div>
-                                <div style="line-height: 1.5; font-size: 0.95rem;">
-                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Mergování (Slučování)</strong>
-                                    <span style="color: var(--text-muted);">Při převzetí nápadu systém analyzuje rozdíly. V případě konfliktu vyvolá okno pro manuální vyřešení.</span>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 15px; margin-bottom: 18px; align-items: flex-start;">
-                                <div style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 900; font-size: 0.85rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">3</div>
-                                <div style="line-height: 1.5; font-size: 0.95rem;">
-                                    <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">Audit log</strong>
-                                    <span style="color: var(--text-muted);">V záložce <em>"Provedené změny"</em> uvidíte exaktní vizualizaci toho, jak bude seznam po vašich zásazích vypadat.</span>
-                                </div>
+                <div class="manual-step-card">
+                    <div class="manual-step-num">2</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">⚖️ Počítadla kritérií fungují zároveň jako filtry!</strong>
+                        <span style="color: var(--text-muted);">V postranním panelu (na mobilu v záložce <em>„Můj výběr“</em>) sledujte počítadla. Pro platný seznam musíte splnit minimální počty:</span>
+                        <ul style="margin: 8px 0 0 18px; padding: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.5;">
+                            <li><strong>Do konce 18. století:</strong> min. 2 díla</li>
+                            <li><strong>19. století:</strong> min. 3 díla</li>
+                            <li><strong>Světová literatura 20. a 21. století:</strong> min. 4 díla</li>
+                            <li><strong>Česká literatura 20. a 21. století:</strong> min. 5 děl</li>
+                            <li><strong>Literární druhy:</strong> próza (epika min. 2), poezie (lyrika min. 2) a drama (min. 2).</li>
+                        </ul>
+
+                        <div class="manual-callout-box">
+                            <span style="font-size: 1.3rem; line-height: 1; flex-shrink: 0;">💡</span>
+                            <div style="line-height: 1.5;">
+                                <strong style="color: var(--accent-primary-light, var(--accent-primary)); display: block; margin-bottom: 2px;">Důležité: Počítadla jsou klikací!</strong>
+                                <span>Každé počítadlo v panelu (např. <em>„Do 18. st. 0/2“</em> nebo <em>„Drama 0/2“</em>) můžete přímo rozkliknout. Tabulka se okamžitě vyfiltruje a zobrazí <strong>pouze knihy z dané kategorie</strong>, které vám ještě chybí k maturitnímu splnění! Nemusíte tak knihy složitě dohledávat.</span>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">3</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">🔍 Rychlé vyhledávání a zobrazení výběru</strong>
+                        <span style="color: var(--text-muted);">Hledejte knihy psaním do horního pole (vyhledává podle autora i díla). Kliknutím na tlačítko <strong>„Zobraz můj výběr“</strong> kdykoliv zkontrolujete pouze knihy, které jste si již do svého seznamu zařadili.</span>
+                    </div>
+                </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">4</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">🖨️ Vyplnění údajů a tisk (PDF)</strong>
+                        <span style="color: var(--text-muted);">Jakmile máte vybráno 20 knih a všechna kritéria splněna, rozbalte v menu <em>„Osobní údaje“</em> (jméno, třída, datum narození) a klikněte na tlačítko <strong>„Export do PDF“</strong>. Vygeneruje se oficiální tiskopis maturitního seznamu připravený k odevzdání.</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div style="padding: 16px 25px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); border-radius: 0 0 12px 12px; flex-wrap: wrap; gap: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted); font-size: 0.88rem; user-select: none;">
+                    <input type="checkbox" id="student-manual-dont-show" style="width: 17px; height: 17px; accent-color: var(--accent-primary); cursor: pointer;">
+                    <span>Příště již nezobrazovat</span>
+                </label>
+                <button onclick="closeStudentManual()" class="btn" style="background: var(--accent-primary); color: white; border: none; padding: 10px 24px; font-weight: bold; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    Rozumím, začít vybírat
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODÁL: NÁPOVĚDA PRO ADMINISTRACI (SPRÁVA SEZNAMU PRO VEDOUCÍ) -->
+    <div id="omega-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 25000; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; width: 90%; max-width: 850px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+            
+            <div style="padding: 20px 25px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                        📚 Správa maturitního seznamu četby
+                    </h2>
+                    <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">Stručný manuál pro vedoucí katedry ČJL – přidání, odebrání a publikace děl.</p>
+                </div>
+                <button onclick="closeAdminManual()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.6rem; cursor: pointer; transition: 0.2s; line-height: 1;" onmouseover="this.style.color='var(--accent-red)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+            </div>
+
+            <div style="padding: 25px; overflow-y: auto; color: var(--text-main); font-size: 0.95rem; line-height: 1.6; display: flex; flex-direction: column; gap: 15px;">
+                
+                <div class="manual-step-card">
+                    <div class="manual-step-num">1</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">➕ Přidání nové knihy do seznamu</strong>
+                        <span style="color: var(--text-muted);">V záložce <strong>„Přidat dílo“</strong> nahoře zadejte název, autora, zvolte období a literární druh. Kliknutím na <strong>„Vložit do databáze“</strong> knihu zařadíte. Volitelně můžete určit přesné ID pozice.</span>
+                    </div>
+                </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">2</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">🗑️ Odebrání knihy ze seznamu</strong>
+                        <span style="color: var(--text-muted);">V záložce <strong>„Seznam děl a úpravy“</strong> vyhledejte knihu a klikněte v řádku na červenou ikonu koše. Kniha bude označena k vyřazení a v tabulce přeškrtnuta.</span>
+                    </div>
+                </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">3</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">✏️ Úprava textu či pořadí</strong>
+                        <span style="color: var(--text-muted);">Pro opravu názvu či autora stačí <strong>kliknout přímo do buňky</strong> a text přepsat. Pořadí knih můžete upravit tažením za ikonu ☰ na začátku řádku.</span>
+                    </div>
+                </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">4</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">🚀 Ostrý zápis do produkce (Uložení na web)</strong>
+                        <span style="color: var(--text-muted);">Po dokončení změn klikněte dole na tlačítko <strong>„Publikovat do produkce“</strong>. Zadejte stručný popis úprav pro historii a potvrďte. Změny se okamžitě nahrají do repozitáře a promítnou na živém webu.</span>
+                    </div>
+                </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">5</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">☁️ Přerušení práce (Záloha na PIN kód)</strong>
+                        <span style="color: var(--text-muted);">Pokud potřebujete odejít a práci dokončit později, klikněte na <em>„Odložit práci na později“</em>. Systém vygeneruje 4místný PIN kód (platnost 7 dní), pod kterým můžete data načíst kdykoliv a odkudkoliv.</span>
+                    </div>
+                </div>
+
+                <div class="manual-step-card">
+                    <div class="manual-step-num">6</div>
+                    <div>
+                        <strong style="color: var(--text-main); font-size: 1rem; display: block; margin-bottom: 4px;">🖨️ Tisk doporučeného seznamu pro studenty (bez osobních údajů)</strong>
+                        <span style="color: var(--text-muted);">V hlavní nabídce (studentské selekci) <strong>5× rychle poklepejte na nadpis „SELEKCE ČETBY“</strong>. Tím se aktivuje režim pro učitele: tlačítko exportu se přepne na <em>„Export bez os. údajů (Učitel)“</em> a umožní vyexportovat maturitní formulář 20 vybraných děl bez nutnosti vyplňovat osobní údaje i školní rok (linky zůstanou čisté pro ruční dopsání). Opětovným 5× poklepáním na nadpis se režim vypne.</span>
+                    </div>
+                </div>
+
             </div>
             
-            <div style="padding: 15px 25px; border-top: 1px solid var(--border); text-align: right; background: var(--bg-base); border-radius: 0 0 12px 12px;">
-                <button onclick="document.getElementById('omega-manual-modal').style.display='none'" class="btn" style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-main); padding: 10px 25px; font-weight: bold;">
-                    Rozumím, zavřít
+            <div style="padding: 16px 25px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-base); border-radius: 0 0 12px 12px; flex-wrap: wrap; gap: 12px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted); font-size: 0.88rem; user-select: none;">
+                    <input type="checkbox" id="admin-manual-dont-show" style="width: 17px; height: 17px; accent-color: var(--accent-primary); cursor: pointer;">
+                    <span>Příště již nezobrazovat</span>
+                </label>
+                <button onclick="closeAdminManual()" class="btn" style="background: var(--accent-primary); color: white; border: none; padding: 10px 24px; font-weight: bold; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                    Rozumím, pokračovat
                 </button>
             </div>
         </div>
     </div>
     <div id="omega-print-layer"></div>
+
+    <!-- OMEGA CORE MODULES -->
+    <script src="js/core/config.js"></script>
+    <script src="js/core/security.js"></script>
+    <script src="js/core/telemetry.js"></script>
+    <script src="js/core/theme.js"></script>
+    <script src="js/core/pwa.js"></script>
+
+    <!-- OMEGA SHARED MODULES -->
+    <script src="js/shared/toast.js"></script>
+    <script src="js/shared/notifications.js"></script>
+    <script src="js/shared/status.js"></script>
+    <script src="js/shared/profile.js"></script>
+    <script src="js/shared/changelog.js"></script>
+    <script src="js/shared/manual.js"></script>
+
+    <!-- OMEGA DIFF ENGINE -->
+    <script src="js/diff/lis-engine.js"></script>
+
+    <!-- OMEGA STUDENT MODULES -->
+    <script src="js/student/state.js"></script>
+    <script src="js/student/stats.js"></script>
+    <script src="js/student/table.js"></script>
+    <script src="js/student/filters.js"></script>
+    <script src="js/student/transfer.js"></script>
+    <script src="js/student/print.js"></script>
+    <script src="js/student/reset.js"></script>
+
+    <!-- OMEGA ADMIN MODULES -->
+    <script src="js/admin/state.js"></script>
+    <script src="js/admin/auth.js"></script>
+    <script src="js/admin/session.js"></script>
+    <script src="js/admin/ui.js"></script>
+    <script src="js/admin/database.js"></script>
+    <script src="js/admin/table.js"></script>
+    <script src="js/admin/teleport.js"></script>
+    <script src="js/admin/users.js"></script>
+    <script src="js/admin/changelog.js"></script>
+    <script src="js/admin/audit.js"></script>
+    <script src="js/admin/export.js"></script>
+    <script src="js/admin/inbox.js"></script>
+    <script src="js/admin/recovery.js"></script>
+    <script src="js/admin/print.js"></script>
+
+    <!-- OMEGA BOOTSTRAP ORCHESTRATOR -->
     <script src="app.js"></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script>
