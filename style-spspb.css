@@ -315,21 +315,21 @@ tr.selected td:nth-child(2) { color: var(--accent-primary); font-weight: bold; }
    LIGHT MODE: SPŠ BRANDING (Forest & Mint Synergy)
    ========================================== */
 :root[data-theme="light"] {
-    --bg-base: #dce3df;       
+    --bg-base: #f4f7f5;       /* Svěží, čisté světlé plátno */
     --bg-surface: #ffffff;    
-    --bg-surface-hover: #f4fbf7; /* Velmi jemný mint nádech při přejetí myší */
-    --bg-active: rgba(118, 203, 161, 0.2); /* Silnější Mint tint pro selekci */
+    --bg-surface-hover: #f0fdf4; /* Velmi jemný mint nádech při přejetí myší */
+    --bg-active: rgba(67, 119, 93, 0.12); /* Kontrastní Forest tint pro selekci */
     
-    --text-main: #0f172a;     
-    --text-muted: #475569;    
+    --text-main: #0f172a;     /* Téměř černá */
+    --text-muted: #334155;    /* Vysoce kontrastní tmavá břidlice Slate 700 */
     
-    --accent-primary: #43775d;       /* Forest Green (Střecha a primární akce) */
-    --accent-primary-light: #76cba1; /* Mint Green (Zvýrazňovač) */
-    --accent-green: #3b6b52;         
+    --accent-primary: #33614a;       /* Tmavší Forest Green s perfektní čitelností */
+    --accent-primary-light: #1b4332; /* Tmavá kontrastní lesní zelená pro světle téma */
+    --accent-green: #2d6a4f;         
     --accent-red: #dc2626;
     
     --border: #cbd5e1;        
-    --focus-ring: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent-primary-light);
+    --focus-ring: 0 0 0 2px var(--bg-surface), 0 0 0 4px rgba(51, 97, 74, 0.35);
 }
 
 /* 1. ODDĚLENÍ VRSTEV */
@@ -592,6 +592,38 @@ tr.selected td:nth-child(2) { color: var(--accent-primary); font-weight: bold; }
 /* Fix flexboxu pro Top Bar */
 .top-bar { display: flex; gap: 10px; align-items: center; }
 
+.guide-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0 14px;
+    height: 40px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.guide-toggle-btn:hover {
+    color: var(--accent-primary-light, var(--accent-primary));
+    border-color: var(--accent-primary);
+    background: var(--bg-surface-hover);
+    transform: translateY(-1px);
+}
+@media (max-width: 650px) {
+    .guide-toggle-btn {
+        padding: 0 10px;
+    }
+    .guide-toggle-btn .guide-toggle-text {
+        display: none;
+    }
+}
+
 
 /* =========================================
    PWA BOTTOM NAVIGATION (MOBILE ONLY)
@@ -769,3 +801,345 @@ select.styled-input {
     background: rgba(118, 203, 161, 0.1) !important; /* SPŠ Mint Hover */
     color: var(--accent-primary) !important;
 }
+
+/* =====================================================================
+   🌓 PLYNULÝ PŘECHOD MEZI DARK / LIGHT MOTIVEM (Eye-Friendly Crossfade)
+   ===================================================================== */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    transition-delay: 0s !important;
+}
+
+/* =====================================================================
+   📖 OMEGA CHANGELOG & HISTORIE KNIH (Responzivní layout karet)
+   ===================================================================== */
+.omega-history-grid {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.omega-history-grid > strong:first-child {
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+    font-family: monospace !important;
+    background: color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
+    color: var(--accent-primary-light, var(--accent-primary)) !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    margin-right: 6px !important;
+}
+
+.omega-history-grid > span:nth-child(2) {
+    font-weight: bold !important;
+    color: var(--text-main) !important;
+    font-size: 0.95rem !important;
+    margin-right: 6px !important;
+    white-space: normal !important;
+}
+
+.omega-history-grid > span:nth-child(3) {
+    color: var(--text-muted) !important;
+    font-size: 0.88rem !important;
+    margin-right: auto !important;
+    white-space: normal !important;
+}
+
+.omega-history-grid > span:nth-child(4),
+.omega-history-grid > span:nth-child(5) {
+    font-size: 0.75rem !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-muted) !important;
+    flex-shrink: 0 !important;
+}
+
+.omega-history-grid > span:nth-child(4) {
+    color: var(--accent-primary-light, var(--text-main)) !important;
+    border-color: color-mix(in srgb, var(--accent-primary) 25%, transparent) !important;
+}
+
+/* Mobilní responzivita */
+@media (max-width: 650px) {
+    .omega-history-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+        width: 100% !important;
+        padding: 4px 0 !important;
+    }
+    .omega-history-grid > span:nth-child(3) {
+        margin-right: 0 !important;
+        margin-bottom: 4px !important;
+    }
+}
+
+/* =====================================================================
+   📖 OMEGA MANUAL & STEP CARDS (SPSPB Edition)
+   ===================================================================== */
+.manual-step-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: var(--bg-base);
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+.manual-step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 900;
+    font-size: 0.95rem;
+    background: rgba(89, 166, 122, 0.15);
+    background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+    color: var(--accent-primary-light, var(--accent-primary));
+    border: 1px solid rgba(89, 166, 122, 0.4);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.manual-callout-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(89, 166, 122, 0.1);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+    border: 1px solid rgba(89, 166, 122, 0.3);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+/* 🌞 VYSOCE KONTRASTNÍ WHITE MODE PRO MANUÁL */
+:root[data-theme="light"] .manual-step-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+:root[data-theme="light"] .manual-step-card strong {
+    color: #0f172a !important;
+}
+:root[data-theme="light"] .manual-step-card span,
+:root[data-theme="light"] .manual-step-card ul,
+:root[data-theme="light"] .manual-step-card li {
+    color: #334155 !important;
+}
+:root[data-theme="light"] .manual-step-num {
+    background: #e6f4ea !important;
+    border: 1.5px solid #2d6a4f !important;
+    color: #14532d !important;
+    font-weight: 900 !important;
+}
+:root[data-theme="light"] .manual-callout-box {
+    background: #f0fdf4 !important;
+    border: 1.5px solid #86efac !important;
+    color: #1e293b !important;
+}
+:root[data-theme="light"] .manual-callout-box strong {
+    color: #14532d !important;
+    font-weight: 800 !important;
+}
+:root[data-theme="light"] .manual-callout-box span {
+    color: #334155 !important;
+}
+
+/* =====================================================================
+   🏫 SIDEBAR BRAND & INSTITUTIONAL LOGO
+   ===================================================================== */
+.sidebar-brand-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 10px;
+    width: 100%;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.2px;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.brand-text {
+    white-space: nowrap;
+    display: inline-flex;
+    gap: 0.35em;
+    align-items: center;
+}
+
+.brand-logo, #brand-logo {
+    display: block;
+    object-fit: contain;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* 📱 Mobilní a tabletové zobrazení (<= 1100px) */
+@media screen and (max-width: 1100px) {
+    .sidebar-brand-container .brand {
+        font-size: 1.32rem;
+    }
+    .brand-logo, #brand-logo {
+        width: 36px;
+        height: 36px;
+    }
+    .brand {
+        gap: 10px;
+    }
+}
+
+/* 🖥️ PC zobrazení (nad 1100px) - bez tlačítka "?", plná prominentní velikost */
+@media screen and (min-width: 1101px) {
+    .sidebar-brand-container {
+        margin-bottom: 1.8rem;
+    }
+    .sidebar-brand-container .brand {
+        font-size: 1.5rem;
+    }
+    .brand-logo, #brand-logo {
+        width: 44px;
+        height: 44px;
+    }
+    .brand {
+        gap: 12px;
+    }
+    #sidebar-student-guide {
+        display: none !important;
+    }
+}
+
+/* =====================================================================
+   📚 OMEGA CHANGELOG MODAL (Úpravy seznamu knih)
+   ===================================================================== */
+.changelog-modal-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 680px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.changelog-modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-surface);
+}
+
+.changelog-modal-header h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 800;
+}
+
+.changelog-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.6rem;
+    cursor: pointer;
+    transition: 0.2s;
+    line-height: 1;
+    padding: 0;
+}
+.changelog-close-btn:hover {
+    color: var(--accent-red);
+}
+
+.changelog-modal-content {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding: 20px 24px;
+}
+
+.changelog-modal-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-base);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-close-changelog {
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    padding: 9px 24px;
+    font-weight: bold;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: 0.2s;
+}
+.btn-close-changelog:hover {
+    filter: brightness(1.1);
+}
+
+/* 📱 Mobilní responzivita pro modál Úpravy seznamu knih */
+@media (max-width: 650px) {
+    .changelog-modal-card {
+        width: 94% !important;
+        max-height: 92vh !important;
+        border-radius: 10px !important;
+    }
+    .changelog-modal-header {
+        padding: 14px 16px !important;
+    }
+    .changelog-modal-header h2 {
+        font-size: 1.1rem !important;
+    }
+    .changelog-modal-content {
+        padding: 14px 12px !important;
+    }
+    .changelog-modal-footer {
+        padding: 10px 16px !important;
+    }
+    .btn-close-changelog {
+        padding: 8px 18px !important;
+        font-size: 0.88rem !important;
+    }
+}
+

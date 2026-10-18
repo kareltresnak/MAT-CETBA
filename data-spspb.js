@@ -20,26 +20,19 @@ window.OMEGA_CONFIG = {
     `,
     RULES_HTML: "",
     FORM_FIELDS: ['name', 'dob', 'class', 'year'],
-    
-    // 🚀 OMEGA FIX: Obory zapsány jako čisté JS pole (Bez uvozovek)
-    OBORY_CONFIG: [
-        { "kod": "23-41-M/01 STROJÍRENSTVÍ", "svp": "Strojírenství počítačové" },
-        { "kod": "26-41-M/01 ELEKTROTECHNIKA", "svp": "Počítačové technologie" },
-        { "kod": "18-20-M/01 INFORMAČNÍ TECHNOLOGIE", "svp": "Informační technologie" },
-        { "kod": "36-47-M/01 STAVEBNICTVÍ", "svp": "Pozemní stavitelství" },
-        { "kod": "36-47-M/01 STAVEBNICTVÍ", "svp": "Pozemní stavitelství a architektura" }
-    ],
 
     renderPdf: function(selectedBooks, student, sanitize) {
+        student = student || {};
+        const safeSanitize = typeof sanitize === 'function' ? sanitize : (s => s || '');
         const buckets = { do18: [], "19": [], svet20: [], cz20: [], dalsi: [] };
         const limits = { do18: 2, "19": 3, svet20: 4, cz20: 5 };
         const counts = { do18: 0, "19": 0, svet20: 0, cz20: 0 };
 
-        selectedBooks.forEach(k => {
-            if (counts[k.obdobi] < limits[k.obdobi]) {
+        (selectedBooks || []).forEach(k => {
+            if (k && k.obdobi && counts[k.obdobi] < limits[k.obdobi]) {
                 buckets[k.obdobi].push(k);
                 counts[k.obdobi]++;
-            } else {
+            } else if (k) {
                 buckets.dalsi.push(k);
             }
         });
@@ -49,12 +42,17 @@ window.OMEGA_CONFIG = {
             return books.map(k => `
                 <tr>
                     <td class="col-c">${counter++}.</td>
-                    <td class="col-cs">${k.id}</td>
-                    <td class="col-autor">${sanitize(k.autor)}</td>
-                    <td class="col-nazev">${sanitize(k.dilo)}</td>
+                    <td class="col-cs">${k.id !== undefined && k.id !== null ? k.id : '&nbsp;'}</td>
+                    <td class="col-autor">${k.autor ? safeSanitize(k.autor) : '&nbsp;'}</td>
+                    <td class="col-nazev">${k.dilo ? safeSanitize(k.dilo) : '&nbsp;'}</td>
                 </tr>
             `).join('');
         };
+
+        const nameVal = (student.name && safeSanitize(student.name).trim()) || '&nbsp;';
+        const dobVal = (student.dob && safeSanitize(student.dob).trim()) || '&nbsp;';
+        const classVal = (student.class && safeSanitize(student.class).trim()) || '&nbsp;';
+        const yearVal = (student.year && safeSanitize(student.year).trim()) || '&nbsp;';
 
         return `
             <style>
@@ -115,10 +113,10 @@ window.OMEGA_CONFIG = {
                                 </table>
                             </td>
                         </tr>
-                        <tr><td colspan="3" class="info-label">jméno a příjmení:</td><td class="info-value">${sanitize(student.name)}</td></tr>
-                        <tr><td colspan="3" class="info-label">datum narození:</td><td class="info-value">${sanitize(student.dob)}</td></tr>
-                        <tr><td colspan="3" class="info-label">třída:</td><td class="info-value">${sanitize(student.class)}</td></tr>
-                        <tr><td colspan="3" class="info-label">školní rok:</td><td class="info-value">${sanitize(student.year)}</td></tr>
+                        <tr><td colspan="3" class="info-label">jméno a příjmení:</td><td class="info-value">${nameVal}</td></tr>
+                        <tr><td colspan="3" class="info-label">datum narození:</td><td class="info-value">${dobVal}</td></tr>
+                        <tr><td colspan="3" class="info-label">třída:</td><td class="info-value">${classVal}</td></tr>
+                        <tr><td colspan="3" class="info-label">školní rok:</td><td class="info-value">${yearVal}</td></tr>
 
                         <tr class="col-headers">
                             <td class="col-c">č.</td><td class="col-cs">č.s.</td><td class="col-autor">autor:</td><td class="col-nazev">název díla:</td>
@@ -161,14 +159,14 @@ window.OMEGA_CONFIG = {
     },
     CHANGELOG_DB: [
         {
-                "type": "db",
-                "version": "Revize databáze (9.3.0)",
-                "date": "11. 6. 2026",
-                "notes": [
-                        "<strong style=\"color: #10b981; display: block; margin-bottom: 10px; font-size: 1.1em; letter-spacing: 0.5px;\">➕ PŘIDÁNY:</strong><div style=\"display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px;\"><div style=\"padding: 8px 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 6px;\">\n            <div style=\"display: grid; grid-template-columns: 55px 3fr 2.5fr 1fr 1.5fr; gap: 10px; align-items: center; width: 100%;\">\n                <strong style=\"color: var(--accent-primary-light);\">ID 67</strong>\n                <span style=\"font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\">Bílá nemoc</span>\n                <span style=\"color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\">Karel Čapek</span>\n                <span style=\"color: var(--text-muted); font-size: 0.9em;\">drama</span>\n                <span style=\"color: var(--text-muted); font-size: 0.9em; text-align: right;\">ČR 20. a 21. st.</span>\n            </div></div></div>"
-                ]
+            "type": "db",
+            "version": "Revize databáze (9.3.0)",
+            "date": "11. 6. 2026",
+            "notes": [
+                "<strong style=\"color: #22c55e; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 1.02em; letter-spacing: 0.3px;\"><span>➕</span> PŘIDÁNO DO SEZNAMU:</strong><div style=\"display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;\"><div style=\"padding: 10px 14px; background: rgba(34, 197, 94, 0.04); border: 1px solid rgba(34, 197, 94, 0.15); border-radius: 8px;\"><div class=\"omega-history-grid\"><strong style=\"color: var(--text-muted); background: var(--bg-surface-hover); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); font-family: monospace; font-size: 0.78rem;\">ID 67</strong><span style=\"font-weight: bold; color: var(--text-main);\">Bílá nemoc</span><span style=\"color: var(--text-muted);\">Karel Čapek</span><span style=\"font-size: 0.8em; padding: 2px 8px; border-radius: 4px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted);\">drama</span><span style=\"font-size: 0.8em; padding: 2px 8px; border-radius: 4px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted);\">ČR 20. a 21. st.</span></div></div></div>"
+            ]
         }
-],
+    ],
     KNIHY_DB: [
     { "id": 1, "origId": 1, "dilo": "Ilias", "autor": "Homér", "druh": "epika", "obdobi": "do18" },
     { "id": 2, "origId": 2, "dilo": "Romeo a Julie", "autor": "William Shakespeare", "druh": "drama", "obdobi": "do18" },
