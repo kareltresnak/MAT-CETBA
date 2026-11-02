@@ -1,4 +1,4 @@
-# 📚 Selekce maturitní četby (OMEGA v10.1.0)
+# 📚 Selekce maturitní četby (OMEGA v10.1.1)
 
 Webová progresivní aplikace (PWA) navržená pro **Střední průmyslovou školu a Vyšší odbornou školu Příbram** sloužící k interaktivnímu sestavení, validaci a tisku oficiálního maturitního seznamu literárních děl z českého jazyka a literatury, doplněná o zabezpečený administrační systém pro katedru ČJL.
 
@@ -14,9 +14,10 @@ Aplikace řeší každoroční administrativní zátěž spojenou s výběrem a 
 
 ### 🎓 Pro studenty
 1. **Intuitivní výběr děl:** Studenti si ze školního kánonu (60+ titulů) kliknutím vybírají 20 děl k ústní maturitní zkoušce.
-2. **Reálná validace kritérií CERMAT / SPŠ:** V reálném čase aplikace počítá a vizuálně indikuje splnění všech povinných kvót:
+2. **Reálná validace SPŠ:** V reálném čase aplikace počítá a vizuálně indikuje splnění všech povinných kvót:
    * **Časová období:** min. 2 díla do konce 18. století, min. 3 díla z 19. století, min. 4 díla ze světové literatury 20. a 21. století, min. 5 děl z české literatury 20. a 21. století.
    * **Literární druhy:** min. 2 díla z poezie (lyrika), min. 2 díla z prózy (epika), min. 2 díla z dramatu.
+   * **Limit autorů:** max. 2 díla od téhož autora (systém blokuje výběr 3. díla a vizuálně zešedí ostatní tituly autora).
 3. **Oficiální maturitní tiskopis (PDF):** Po splnění podmínek aplikace vygeneruje oficiální formulář s logem školy a záhlavím přesně podle standardu školy.
 4. **Přenášení a sdílení výběru:** Možnost okamžitého přenosu výběru na jiné zařízení pomocí QR kódu nebo sdílecího URL odkazu.
 5. **100% soukromí (Zero-Knowledge):** Žádná osobní data studentů (jméno, datum narození, třída) se neukládají na žádném serveru – vše zůstává striktně v lokální paměti prohlížeče (`localStorage`).

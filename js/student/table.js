@@ -49,11 +49,27 @@ window.renderTable = function() {
     };
 
     if (window.elements.tableBody) {
+        const authorCounts = {};
+        window.state.selectedIds.forEach(selId => {
+            const k = knihaDb.find(b => b.id === selId);
+            if (k && k.autor) {
+                const a = k.autor.trim().toLowerCase();
+                authorCounts[a] = (authorCounts[a] || 0) + 1;
+            }
+        });
+
         window.elements.tableBody.innerHTML = filtered.map((kniha, index) => {
             const isSelected = window.state.selectedIds.has(kniha.id);
+            const aKey = (kniha.autor || '').trim().toLowerCase();
+            const isAuthorMaxed = !isSelected && (authorCounts[aKey] || 0) >= 2;
             const tIndex = (index === 0) ? "0" : "-1";
+            const rowClass = [
+                isSelected ? 'selected' : '',
+                isAuthorMaxed ? 'author-maxed' : ''
+            ].filter(Boolean).join(' ');
+            const titleAttr = isAuthorMaxed ? `title="Od autora ${window.sanitize(kniha.autor)} již máte vybrána 2 díla (maximum)"` : '';
             return `
-                <tr data-id="${kniha.id}" class="${isSelected ? 'selected' : ''}" tabindex="${tIndex}">
+                <tr data-id="${kniha.id}" class="${rowClass}" tabindex="${tIndex}" ${titleAttr}>
                     <td>${kniha.id}</td>
                     <td>${isSelected ? '✔ ' : ''}${highlight(window.sanitize(kniha.dilo))}</td>
                     <td>${highlight(window.sanitize(kniha.autor))}</td>
@@ -66,7 +82,7 @@ window.renderTable = function() {
 };
 
 /**
- * Přepne stav výběru knihy (vybráno / nevybráno) s kontrolou limitu 20 děl
+ * Přepne stav výběru knihy (vybráno / nevybráno) s kontrolou limitu 20 děl a max. 2 děl od jednoho autora
  * @param {number} id - ID knihy
  */
 window.toggleBook = function(id) {
@@ -77,6 +93,22 @@ window.toggleBook = function(id) {
             window.showToast("⚠️ Kapacita naplněna (20). Odstraňte některé dílo.");
             return;
         }
+
+        const knihaDb = window.getKnihyDb();
+        const targetBook = knihaDb.find(k => k.id === id);
+        if (targetBook && targetBook.autor) {
+            const targetAuthor = targetBook.autor.trim().toLowerCase();
+            const authorCount = Array.from(window.state.selectedIds).filter(selId => {
+                const k = knihaDb.find(b => b.id === selId);
+                return k && k.autor && k.autor.trim().toLowerCase() === targetAuthor;
+            }).length;
+
+            if (authorCount >= 2) {
+                window.showToast(`⚠️ Od autora ${targetBook.autor} lze vybrat maximálně 2 díla.`);
+                return;
+            }
+        }
+
         window.state.selectedIds.add(id);
     }
     

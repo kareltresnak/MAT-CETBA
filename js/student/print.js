@@ -22,6 +22,19 @@ window.printMaturitniDocument = function(options = {}) {
             return;
         }
 
+        // Kontrola max. 2 děl od jednoho autora
+        const authorCounts = {};
+        for (const b of selectedBooks) {
+            if (b && b.autor) {
+                const a = b.autor.trim();
+                authorCounts[a] = (authorCounts[a] || 0) + 1;
+                if (authorCounts[a] > 2) {
+                    window.showToast(`⚠️ Seznam obsahuje více než 2 díla od autora ${b.autor}.`);
+                    return;
+                }
+            }
+        }
+
         window.showToast("⏳ Připravuji PDF dokument...");
 
         let isNoPersonal = options.noPersonalData;

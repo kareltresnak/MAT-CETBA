@@ -183,6 +183,8 @@ td { padding: 1rem; border-bottom: 1px solid var(--border); color: var(--text-mu
 
 tr.selected { background-color: rgba(118, 203, 161, 0.08) !important; }
 tr.selected td:nth-child(2) { color: var(--accent-primary); font-weight: bold; }
+tr.author-maxed { opacity: 0.55; }
+tr.author-maxed:hover { opacity: 0.85; }
 
 .fab-btn { position: fixed; bottom: 2rem; right: 2rem; width: 3.5rem; height: 3.5rem; border-radius: 50%; background: var(--bg-surface); border: 2px solid var(--accent-primary); color: var(--accent-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 100; opacity: 0; pointer-events: none; transform: translateY(20px); transition: 0.3s; font-size: 1.5rem; font-weight: bold; }
 .fab-btn.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }

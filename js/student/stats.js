@@ -12,12 +12,17 @@ window.updateStatsAndSidebar = function() {
     const stats = { do18: 0, "19": 0, svet20: 0, cz20: 0, lyrika: 0, epika: 0, drama: 0 };
     const knihaDb = window.getKnihyDb();
     const requirements = window.getRequirements();
+    const authorCounts = {};
     
     window.state.selectedIds.forEach(id => {
         const kniha = knihaDb.find(k => k.id === id);
         if (kniha) {
             stats[kniha.obdobi]++; 
             stats[kniha.druh]++;
+            if (kniha.autor) {
+                const aName = kniha.autor.trim();
+                authorCounts[aName] = (authorCounts[aName] || 0) + 1;
+            }
         } else {
             window.state.selectedIds.delete(id);
         }
@@ -27,10 +32,16 @@ window.updateStatsAndSidebar = function() {
     let isFullyValid = (total === 20);
     
     for (const key in requirements) {
-        if ((stats[key] || 0) < requirements[key]) {
+        if (key in stats && (stats[key] || 0) < requirements[key]) {
             isFullyValid = false;
             break;
         }
+    }
+
+    // Kontrola maximálního limitu děl od jednoho autora (max. 2)
+    const authorViolations = Object.entries(authorCounts).filter(([_, count]) => count > 2);
+    if (authorViolations.length > 0) {
+        isFullyValid = false;
     }
 
     // Externí validace a PII kontrola
@@ -100,6 +111,12 @@ window.updateStatsAndSidebar = function() {
         }
     }
     
+    // Kontrola limitu děl na autora do chybových výpisů
+    authorViolations.forEach(([author, count]) => {
+        const countText = (count === 3 || count === 4) ? `${count} díla` : `${count} děl`;
+        localErrors.push(`Od autora <strong>${window.sanitize(author)}</strong> máte vybráno ${countText} (povolena jsou max. 2).`);
+    });
+
     if (localErrors.length > 0) {
         isFullyValid = false;
     }

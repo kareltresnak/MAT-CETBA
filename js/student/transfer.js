@@ -151,14 +151,23 @@ window.Omega = window.Omega || {};
 
         // Simulace platnosti načteného seznamu
         const stats = { do18: 0, "19": 0, svet20: 0, cz20: 0, lyrika: 0, epika: 0, drama: 0 };
+        const authorCounts = {};
+        let hasAuthorViolation = false;
+
         importedBooks.forEach(k => {
             if (k) {
                 stats[k.obdobi]++;
                 stats[k.druh]++;
+                if (k.autor) {
+                    const a = k.autor.trim().toLowerCase();
+                    authorCounts[a] = (authorCounts[a] || 0) + 1;
+                    if (authorCounts[a] > 2) hasAuthorViolation = true;
+                }
             }
         });
 
         const isFullyValid = importedIds.length === 20 && 
+                             !hasAuthorViolation &&
                              stats.do18 >= requirements.do18 && stats["19"] >= requirements["19"] && 
                              stats.svet20 >= requirements.svet20 && stats.cz20 >= requirements.cz20 &&
                              stats.lyrika >= requirements.lyrika && stats.epika >= requirements.epika && stats.drama >= requirements.drama;
@@ -199,8 +208,23 @@ window.Omega = window.Omega || {};
         if (btnReplace) {
             btnReplace.onclick = () => {
                 window.state.selectedIds.clear();
-                importedIds.forEach(id => window.state.selectedIds.add(id));
-                window.finalizeImport(`✅ Seznam přepsán. Načteno ${importedIds.length} děl.`);
+                const authorCounts = {};
+                let overflow = false;
+                importedIds.forEach(id => {
+                    const book = knihaDb.find(k => k.id === id);
+                    const author = book && book.autor ? book.autor.trim().toLowerCase() : '';
+                    if (author) {
+                        if ((authorCounts[author] || 0) >= 2) {
+                            overflow = true;
+                            return;
+                        }
+                        authorCounts[author] = (authorCounts[author] || 0) + 1;
+                    }
+                    window.state.selectedIds.add(id);
+                });
+                let msg = `✅ Seznam přepsán. Načteno ${window.state.selectedIds.size} děl.`;
+                if (overflow) msg += " (Některá díla vynechána kvůli limitu max. 2 děl na autora).";
+                window.finalizeImport(msg);
             };
         }
 
@@ -213,8 +237,19 @@ window.Omega = window.Omega || {};
                 importedIds.forEach(id => {
                     if (window.state.selectedIds.size < 20) {
                         if (!window.state.selectedIds.has(id)) {
-                            window.state.selectedIds.add(id);
-                            addedCount++;
+                            const book = knihaDb.find(k => k.id === id);
+                            const author = book && book.autor ? book.autor.trim().toLowerCase() : '';
+                            const currentAuthorCount = Array.from(window.state.selectedIds).filter(selId => {
+                                const k = knihaDb.find(b => b.id === selId);
+                                return k && k.autor && k.autor.trim().toLowerCase() === author;
+                            }).length;
+
+                            if (currentAuthorCount < 2) {
+                                window.state.selectedIds.add(id);
+                                addedCount++;
+                            } else {
+                                overflow = true;
+                            }
                         }
                     } else if (!window.state.selectedIds.has(id)) {
                         overflow = true;
@@ -222,7 +257,7 @@ window.Omega = window.Omega || {};
                 });
                 
                 let msg = `✅ Doplněno ${addedCount} nových děl.`;
-                if (overflow) msg += " (Některá z odkazu přeskočena kvůli limitu 20).";
+                if (overflow) msg += " (Některá díla přeskočena kvůli limitu kapacity či max. 2 děl na autora).";
                 if (addedCount === 0 && !overflow) msg = "ℹ️ Žádná nová díla nebyla přidána.";
                 window.finalizeImport(msg);
             };
